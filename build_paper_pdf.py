@@ -195,7 +195,7 @@ def build_pdf(filename="IR_IDS_2_0_Research_Paper.pdf"):
         body_style
     ))
     story.append(Paragraph(
-        "Reconciling open-set zero-day detection with transparent decision logic motivated the IR-IDS framework proposed by Gao et al. (2025). Despite the conceptual promise of combining causal feature selection, decision trees, and KAN-CVAEs, our mathematical and empirical audit reveals five fundamental structural breakdowns in the published framework: inverted propensity scores, combinatorial grid sparsity, self-conditioning algorithmic bugs, invalid vector KL metrics, and the Accuracy Paradox masking failures on rare stealth exploits.",
+        "Reconciling open-set zero-day detection with transparent decision logic motivated the IR-IDS framework proposed by Gao et al. (2025). Despite the conceptual promise of combining causal feature selection, decision trees, and KAN-CVAEs, our mathematical and empirical audit reveals five fundamental structural breakdowns in the published framework: inverted propensity scores, combinatorial grid sparsity, self-conditioning algorithmic bugs, invalid vector KL metrics, and the Evaluation Skew masking failures on rare stealth exploits.",
         body_style
     ))
 
@@ -214,11 +214,11 @@ def build_pdf(filename="IR_IDS_2_0_Research_Paper.pdf"):
         body_style
     ))
     story.append(Paragraph(
-        "<b>2.4 The Stealth Attack Accuracy Paradox:</b> Gao et al. reported headline accuracies exceeding 98.8%. However, their published ablation tables show that stealthy attacks were largely missed: in CIC-IDS2017, Infiltration recall was <b>2.78%</b> (1 of 36 flows detected) and SQL Injection was <b>23.81%</b> (5 of 21 flows). High headline accuracy was an illusion created by overwhelming volumes of benign traffic and brute-force DoS floods.",
+        "<b>2.4 The Stealth Attack Evaluation Skew:</b> Gao et al. reported headline accuracies exceeding 98.8%. However, their published ablation tables show that stealthy attacks were largely missed: in CIC-IDS2017, Infiltration recall was <b>2.78%</b> (1 of 36 flows detected) and SQL Injection was <b>23.81%</b> (5 of 21 flows). High headline accuracy was an illusion created by overwhelming volumes of benign traffic and brute-force DoS floods.",
         body_style
     ))
     story.append(Paragraph(
-        "<b>2.5 Invalid Vector KL Divergence & Cascading Error:</b> KL divergence is mathematically undefined between continuous signed feature vectors. Furthermore, feeding top-1 hard label predictions into the CVAE causes cascading errors where zero-day attacks are misclassified by the tree and reconstructed under that erroneous label, evading detection completely.",
+        "<b>2.5 Invalid Vector KL Divergence & Cascading Error:</b> KL divergence is mathematically undefined between continuous signed feature vectors. In addition, feeding top-1 hard label predictions into the CVAE causes cascading errors where zero-day attacks are misclassified by the tree and reconstructed under that erroneous label, evading detection completely.",
         body_style
     ))
 
@@ -313,7 +313,7 @@ def build_pdf(filename="IR_IDS_2_0_Research_Paper.pdf"):
     story.append(Paragraph(
         "<b>1. Decoupling Packet Parsing from Flow Verdicts:</b> Per-packet parsing latency is strictly sub-microsecond, but end-to-end flow classification requires flow termination or activity timeouts (typically 15 to 120 seconds).<br/>"
         "<b>2. Proposed Two-Tier Kernel-Bypass Architecture:</b> Tier 1 ingests raw packets via DPDK/AF_XDP, parsing 5-tuples and computing streaming flow statistics using AVX-512 SIMD vectorization. Tier 2 performs batched inference over shared memory rings.<br/>"
-        "<b>3. Offline vs. Online Computation:</b> The 21,029-second runtime in Gao et al. belonged to the BAMB-PS baseline; the proposed DMB-PS completed in 37.46 s. Furthermore, feature selection is strictly an offline training procedure.<br/>"
+        "<b>3. Offline vs. Online Computation:</b> The 21,029-second runtime in Gao et al. belonged to the BAMB-PS baseline; the proposed DMB-PS completed in 37.46 s. In addition, feature selection is strictly an offline training procedure.<br/>"
         "<b>4. Actionable SOC Explainability:</b> Authentic Chebyshev polynomial KAN decomposition and TreeSHAP attributions export closed-form formulas and feature importance with verified fidelity (mean Kendall-tau > 0.85).",
         body_style
     ))
@@ -321,7 +321,7 @@ def build_pdf(filename="IR_IDS_2_0_Research_Paper.pdf"):
     # Conclusion
     story.append(Paragraph("7. Conclusion", h1_style))
     story.append(Paragraph(
-        "This paper audited the IR-IDS framework proposed by Gao et al. (2025), exposing theoretical and empirical defects including inverted propensity scores, combinatorial grid binning, self-conditioning bugs, invalid vector KL divergence, and the Accuracy Paradox on rare stealth traffic. To address these vulnerabilities, we developed IR-IDS 2.0. The system incorporates Dirichlet-Smoothed Conditional Mutual Information (DS-CMI) with a conditioning cap of three, a cost-sensitive HistGBDT trained under balanced focal loss, multi-class marginalized free-energy autoencoding under a regularized Mahalanobis metric, verified Hosking–Wallis POT-EVT with streaming quantile tracking, and symbolic Chebyshev-KAN extraction. Across five benchmark seeds, IR-IDS 2.0 achieves 83.14% Macro-F1, isolates unseen Botnet zero-days at 100.00% recall, raises minority SQL Injection detection to 33.50%, and limits benign false alarms to 0.94%. Finally, we established an architectural proposal decoupling sub-microsecond packet parsing from flow-level anomaly arbitration, providing a verifiable foundation for future high-speed intrusion detection research.",
+        "This paper audited the IR-IDS framework proposed by Gao et al. (2025), exposing theoretical and empirical defects including inverted propensity scores, combinatorial grid binning, self-conditioning bugs, invalid vector KL divergence, and the Evaluation Skew on rare stealth traffic. To address these vulnerabilities, we developed IR-IDS 2.0. The system incorporates Dirichlet-Smoothed Conditional Mutual Information (DS-CMI) with a conditioning cap of three, a cost-sensitive HistGBDT trained under balanced focal loss, multi-class marginalized free-energy autoencoding under a regularized Mahalanobis metric, verified Hosking–Wallis POT-EVT with streaming quantile tracking, and symbolic Chebyshev-KAN extraction. Across five benchmark seeds, IR-IDS 2.0 achieves 83.14% Macro-F1, isolates unseen Botnet zero-days at 100.00% recall, raises minority SQL Injection detection to 33.50%, and limits benign false alarms to 0.94%. Finally, we established an architectural proposal decoupling sub-microsecond packet parsing from flow-level anomaly arbitration, providing a verifiable foundation for future high-speed intrusion detection research.",
         body_style
     ))
 

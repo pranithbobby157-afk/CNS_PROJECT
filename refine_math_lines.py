@@ -140,3 +140,4 @@ with open("paper.tex", "w", encoding="utf-8") as f:
     f.write(text)
 
 print("Applied compact mathematical notations successfully!")
+

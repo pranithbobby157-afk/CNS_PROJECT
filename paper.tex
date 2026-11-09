@@ -36,9 +36,9 @@
 % --- Abstract & Keywords ---
 \IEEEtitleabstractindextext{%
 \begin{abstract}
-Network intrusion detection at multi-gigabit speeds requires models that can identify novel attack patterns without overwhelming security teams with false alarms. Standard supervised classifiers fail under open-set conditions because they force unseen attack traffic into pre-existing training classes. Conversely, pure generative anomaly detectors flag out-of-distribution flows but provide opaque scores that security operations centers cannot readily audit. Recent hybrid architectures attempt to combine causal feature discovery, decision tree classifiers, and variational autoencoders, but analytical audits reveal notable defects in prior formulations: propensity definitions inverted into class-conditional likelihoods, combinatorial sample starvation in high-dimensional grid conditioning, invalid divergence calculations over signed continuous feature vectors, and high headline accuracies that mask near-total detection failure on rare stealth exploits.
+Detecting zero-day attacks on high-speed network perimeters remains an unsolved operational headache. Supervised classifiers fail when confronted with unobserved exploits because they force incoming traffic into pre-existing training categories. Generative anomaly detectors flag novel patterns, but security analysts distrust black-box reconstruction scores that offer no diagnostic explanation. Gao et al. (\textit{Computers \& Security} 2025) recently proposed IR-IDS to tackle both issues by uniting causal Markov blankets, decision trees, and Kolmogorov--Arnold Network autoencoders. We audited that system and found several critical mathematical errors: an inverted propensity score formula that computes class likelihoods instead of treatment probabilities, joint multi-feature grid binning that leaves conditioning strata empty ($O(|NC|^n)$), a candidate pruning loop that tests variables against sets containing themselves, and an invalid Kullback--Leibler metric computed on signed continuous feature vectors. Worse still, their 98.8\% headline accuracy masked near-total detection failure on stealthy exploits, catching only 2.78\% of Infiltration flows.
 
-This paper presents IR-IDS 2.0, a generalized framework engineered to eliminate these bottlenecks. We introduce Dirichlet-Smoothed Conditional Mutual Information (DS-CMI) with a strict conditioning cap and stratum pooling, guaranteeing strictly positive probabilities and deterministic feature selection across trials. To protect rare attack vectors without distorting normal baselines, we train a histogram gradient-boosted tree ensemble under balanced focal loss. For open-set rejection, we formulate a multi-class marginalized free-energy score evaluated across class manifolds using a regularized Ledoit--Wolf Mahalanobis distance, establishing formal error bounds on zero-day isolation. Anomaly thresholds adapt dynamically through sliding-window benign quantiles paired with Hosking--Wallis Probability Weighted Moments and an adversarial rate limiter. Across five random seeds on intrusion benchmarks, IR-IDS 2.0 attains 83.14\% Macro-F1, isolates unseen Botnet zero-days at 100.00\%, elevates minority SQL injection recall from 19.90\% to 33.50\%, and restricts benign false alarms to 0.94\% (down from 19.12\% in the reimplemented baseline). Finally, we frame wire-speed deployment as a decoupled two-tier architecture that separates sub-microsecond packet parsing from flow-level evaluation.
+This paper presents IR-IDS 2.0, an overhaul that fixes these analytical defects. We replace joint grid binning with Dirichlet-Smoothed Conditional Mutual Information (DS-CMI) capped at three conditioning variables, ensuring strictly positive probabilities and stable feature rankings across trials ($Jaccard = 1.000$). For known traffic, a histogram gradient-boosted tree trained under balanced focal loss improves minority attack recall without triggering false alarms on benign flows. For unknown traffic, we discard single-label autoencoder conditioning and evaluate a marginalized free-energy score across all class heads using a regularized Mahalanobis distance, establishing formal error bounds on zero-day isolation under class manifold separation. Anomaly thresholds adjust online through sliding-window benign quantiles paired with Hosking--Wallis Probability Weighted Moments and an adversarial velocity limiter. Evaluated across five random seeds on intrusion benchmarks, IR-IDS 2.0 achieves 83.14\% Macro-F1, catches unseen Botnet traffic at 100.00\%, elevates minority SQL injection recall from 19.90\% to 33.50\%, and limits benign false alarms to 0.94\% (down from 19.12\% in the baseline). Finally, we outline a two-tier kernel-bypass architecture that decouples sub-microsecond packet parsing from flow-level evaluation.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -53,33 +53,33 @@ Intrusion detection, causal feature selection, Markov blanket, extreme value the
 % SECTION I: INTRODUCTION
 % ============================================================================
 \section{Introduction}
-\IEEEPARstart{A}{utomated} flow inspection is essential for securing modern enterprise and cloud backbones. On links operating at 10 to 40 Gbps, manual inspection is impossible, requiring Network Intrusion Detection Systems (NIDS) to evaluate millions of concurrent sessions \cite{viegas2021machine, ning2021}. The vast majority of production detectors rely on supervised classifiers, such as Random Forests or Gradient Boosted Decision Trees \cite{pajouh2019, mohiuddin2023}. While supervised models achieve high accuracy on historical benchmark datasets, they suffer from an inherent architectural constraint: the closed-world assumption.
+\IEEEPARstart{E}{nterprise} networks carry enormous volumes of data. On backbone links running at 10 to 40 Gbps, human operators cannot inspect packets manually \cite{viegas2021machine, ning2021}. Security Operations Centers (SOCs) depend almost entirely on Network Intrusion Detection Systems (NIDS) to triage millions of daily flows. Most deployed classifiers rely on supervised machine learning—typically Random Forests or Gradient Boosted Decision Trees \cite{pajouh2019, mohiuddin2023}. On benchmark test sets, these algorithms regularly post accuracy scores above 98\%. In live enterprise environments, however, their defense collapses.
 
-Supervised algorithms presume that every packet sequence observed at runtime belongs to a category established during training. When adversaries introduce novel penetration techniques—zero-day exploits—the classifier lacks any mechanism to signal novelty. Instead, it forces the anomalous flow into whichever known class has the nearest decision region. Consequently, zero-day attacks that share physical characteristics with authorized protocols routinely pass undetected.
+The explanation is straightforward: supervised models operate under a closed world. They assume every packet trace encountered in production must belong to one of the specific categories labeled during training. When an attacker deploys a brand-new exploit—a zero-day intrusion—the classifier cannot output ``unknown.'' Instead, it maps the flow onto the nearest known training category. If an attacker crafts an exploit that mimics benign web browsing, the classifier labels it benign. The attack slips quietly through the perimeter.
 
-Unsupervised and semi-supervised generative architectures (such as deep autoencoders and energy-based models) address this blind spot by learning normal traffic profiles and treating high reconstruction errors as anomalies \cite{shone2018, yue2022, wu2023}. However, generative tools introduce operational resistance in Security Operations Centers (SOCs) due to their opacity. An incident responder cannot sever critical communication channels based solely on an unexplainable scalar score. Response teams require verifiable, field-level rationales explaining why a session was flagged \cite{lipton2018, pai2024}.
+Unsupervised generative models take a different approach. Autoencoders and energy-based detectors learn what normal traffic looks like and flag anything that fails reconstruction \cite{shone2018, yue2022, wu2023}. Yet anomaly detectors introduce their own friction: opacity. A network engineer cannot cut off a database server or isolate an executive workstation based on an uninterpretable anomaly scalar. Incident responders demand clear, field-level evidence showing exactly which protocol fields or packet statistics triggered the alert \cite{lipton2018, pai2024}.
 
-Reconciling open-set zero-day detection with verifiable decision logic motivated recent hybrid designs, notably the IR-IDS pipeline by Gao et al. \cite{gao2025irids}. That framework combined causal Markov blanket filtering, tree-based classification, and a Kolmogorov--Arnold Network Conditional Variational Autoencoder (KAN--CVAE) with Extreme Value Theory (EVT).
+This tension between zero-day detection and explainable decisions motivated the IR-IDS pipeline proposed by Gao et al. \cite{gao2025irids}. Their system combined three modules: causal feature selection using a Dual Markov Blanket with Propensity Score (DMB-PS), a decision tree guided by Shapley path attributions, and a Kolmogorov--Arnold Network Conditional Variational Autoencoder (KAN--CVAE) paired with Extreme Value Theory (EVT) for thresholding.
 
-A detailed technical audit of that design reveals several fundamental mathematical and algorithmic defects:
+It is an attractive concept. However, when we examined the published mathematics, algorithms, and experimental tables in \cite{gao2025irids}, we uncovered serious technical flaws:
 \begin{itemize}
-    \item \textbf{Inverted Propensity Conditioning:} Prior formulations condition features on treatment labels ($P(X \mid T)$ rather than $P(T \mid X)$), calculating class-conditional likelihoods rather than propensity scores. Furthermore, discretizing conditioning sets into joint grid states incurs an exponential sample explosion ($O(|NC|^n)$), leaving conditioning bins unpopulated.
-    \item \textbf{Self-Conditioning Independence Tests:} Published candidate pruning routines test whether $X \perp Y \mid CMBS$ while $X \in CMBS$. Because conditioning on a variable makes it deterministic, the test trivially evaluates to zero entropy, discarding valid predictors while in-place list mutation skips adjacent elements.
-    \item \textbf{The Stealth Attack Accuracy Paradox:} High overall classification accuracy ($>98.8\%$) masked severe failures on stealthy intrusions. In published benchmark evaluations, Infiltration recall stood at 2.78\% (1 of 36 flows detected) and SQL Injection at 23.81\% (5 of 21 flows), because overwhelming benign volumes obscured perimeter breaches.
-    \item \textbf{Invalid Continuous Vector Divergence:} Computing Kullback--Leibler divergence directly between continuous, signed feature vectors violates information-theoretic axioms, as raw network metrics are physical measurements rather than probability densities.
-    \item \textbf{Cascading Misclassification Errors:} Conditioning autoencoder reconstruction strictly on the upstream classifier's top-1 label prediction corrupts zero-day isolation. When an unknown exploit arrives, the classifier assigns a known label, and the autoencoder reconstructs the flow under that label, suppressing the reconstruction residual.
+    \item \textbf{Inverted Propensity Formulation:} The authors conditioned observed features on the treatment label ($P(X \mid T)$ rather than $P(T \mid X)$). In probability theory, this calculates a generative class likelihood, exactly like Naive Bayes. It is not a propensity score. At the same time, their multi-feature grid binning explodes the state space ($O(|NC|^n)$), leaving virtually all conditioning cells empty.
+    \item \textbf{Self-Conditioning Bug in Algorithm 1:} The published feature-pruning code tests whether $X \perp Y \mid CMBS$ while $X$ is still inside $CMBS$. Conditioning on a set that includes $X$ makes $X$ deterministic. Its conditional entropy is zero. Consequently, the test thinks every variable is independent and removes all features. Worse, mutating the list in-place during the loop causes Python iterators to skip candidate features entirely.
+    \item \textbf{The Skewed Accuracy Illusion on Stealth Traffic:} Gao et al. reported headline accuracies above 98.8\%. But their own ablation tables show that stealthy attacks were almost completely missed. In CIC-IDS2017, their model caught only 2.78\% of Infiltration flows (1 out of 36) and 23.81\% of SQL Injection flows (5 out of 21). The 98.8\% figure looked impressive only because benign flows and massive DoS floods dominated the dataset.
+    \item \textbf{Undefined Continuous KL Divergence:} The paper computed Kullback--Leibler divergence directly between continuous, signed feature vectors ($D_{KL}(x \parallel \hat{x})$). Because network measurements are physical quantities that do not sum to one, this calculation violates the basic axioms of measure theory.
+    \item \textbf{Cascading Error Propagation:} The KAN--CVAE reconstructs ingress traffic conditioned on the upstream classifier's top-1 label prediction $\hat{y}$. When a zero-day exploit arrives, the classifier forces it into a known class label. The autoencoder then reconstructs the packet under that false label, keeping reconstruction errors low and allowing the zero-day to bypass the EVT anomaly gate.
 \end{itemize}
 
 \subsection{Contributions of This Work}
-To resolve these theoretical and algorithmic vulnerabilities, this paper presents \textbf{IR-IDS 2.0}. Our main contributions include:
+To resolve these issues and establish an honest, reproducible benchmark, this paper introduces \textbf{IR-IDS 2.0}:
 \begin{enumerate}
-    \item \textbf{Dirichlet-Smoothed Causal Selection (DS-CMI):} We reformulate Markov blanket discovery using Dirichlet-smoothed conditional mutual information over equal-depth quantile bins. A strict conditioning cap ($|Z| \le 3$) and stratum pooling eliminate division-by-zero, ensuring stable feature selection across trials ($Jaccard = 1.000$).
-    \item \textbf{Sequential Greedy Pruning:} We replace simultaneous feature elimination with a single-lowest backward pruning pass, preserving mutually dependent causal predictors.
-    \item \textbf{Cost-Sensitive Minority Recovery:} We train a histogram-based gradient-boosted ensemble under balanced focal loss, raising minority SQL injection recall from 19.90\% to 33.50\% without inflating false positive rates.
-    \item \textbf{Marginalized Free-Energy Scoring:} We eliminate top-1 conditioning errors by evaluating reconstruction residuals across all class heads via a regularized Mahalanobis metric, establishing a formal lower bound on zero-day free energy under manifold separation.
-    \item \textbf{Statistically Grounded Dynamic EVT:} We implement Hosking--Wallis Probability Weighted Moments for Generalized Pareto tails ($<1.2\%$ parameter error) and replace flawed mean-tracking EMAs with a streaming benign quantile tracker guarded by an adversarial rate limiter.
+    \item \textbf{Robust Causal Selection (DS-CMI):} We redesign the Markov blanket search around Dirichlet-Smoothed Conditional Mutual Information over equal-depth quantile bins. Enforcing a strict conditioning cap ($|Z| \le 3$) and stratum pooling prevents empty-cell division-by-zero, yielding deterministic feature selection across trials ($Jaccard = 1.000$).
+    \item \textbf{Sequential Backward Elimination:} We fix the simultaneous pruning flaw in Algorithm 1, eliminating one feature at a time to preserve mutually dependent causal predictors.
+    \item \textbf{Cost-Sensitive Minority Recovery:} We train a histogram gradient-boosted ensemble under balanced focal loss, boosting minority SQL injection recall from 19.90\% to 33.50\% without inflating false alarms.
+    \item \textbf{Marginalized Free-Energy Scoring:} We eliminate top-1 conditioning errors by evaluating reconstruction residuals across all class heads via a regularized Mahalanobis metric, establishing a formal lower bound on zero-day free energy under class manifold separation.
+    \item \textbf{Statistically Verified Dynamic EVT:} We implement Hosking--Wallis Probability Weighted Moments for Generalized Pareto tails ($<1.2\%$ parameter error) and replace flawed mean-tracking EMAs with a streaming benign quantile tracker guarded by an adversarial rate limiter.
     \item \textbf{Authentic Symbolic KAN Extraction:} We extract genuine Chebyshev polynomial formulas with $L_1$ pruning, verifying post-hoc attribution fidelity ($Kendall\text{-}\tau > 0.85$).
-    \item \textbf{Decoupled Deployment Modeling:} We decouple sub-microsecond packet parsing from flow-level verdict latency, proposing a two-tier kernel-bypass pipeline.
+    \item \textbf{Decoupled Deployment Architecture:} We decouple sub-microsecond packet parsing from flow-level verdict latency, proposing a two-tier kernel-bypass pipeline.
 \end{enumerate}
 
 % ============================================================================
@@ -88,7 +88,7 @@ To resolve these theoretical and algorithmic vulnerabilities, this paper present
 \section{Related Work \& Taxonomy}
 
 \subsection{Supervised Classifiers in Network Security}
-Statistical learning in traffic analysis originally centered on linear transformations paired with nearest-neighbor search \cite{pajouh2019}. While computationally efficient, linear projections discard non-linear protocol dependencies. Subsequent studies adopted heuristic search wrappers, such as Cuckoo Search and Particle Swarm Optimization \cite{mohiuddin2023}, to select Random Forest feature subsets. However, heuristic search scales poorly to high-dimensional flow tables.
+Early intrusion detection systems relied on simple feature transforms and nearest-neighbor search \cite{pajouh2019}. While fast, linear projections drop complex protocol dependencies. Later studies tried heuristic optimization wrappers—such as Cuckoo Search and Particle Swarm Optimization \cite{mohiuddin2023}—to trim Random Forest feature sets. Yet heuristic wrappers take hours to converge and scale poorly when flow tables record dozens of attributes.
 
 Tree ensembles and margin-based classifiers remain standard choices for network monitoring due to fast training times and resilience to label noise \cite{megantara2021, jeong2022}. Regardless of tuning, their core assumption remains unchanged: every test flow must belong to an already observed class. Novel attacks that deviate from known patterns are inevitably forced into incorrect bins.
 
@@ -227,7 +227,7 @@ This listing contains two implementation bugs:
     \item \textbf{In-Place Mutation:} Calling \texttt{remove(X)} while iterating forward over a dynamic list shifts internal indices, skipping the next element.
 \end{enumerate}
 
-\subsection{The Accuracy Paradox on Rare Stealth Intrusions}
+\subsection{The Skewed Accuracy Illusion on Stealth Traffic}
 Table~\ref{tab:paper_flaw_recap} summarizes the performance reported in the ablation tables of \cite{gao2025irids}.
 
 \begin{table}[htbp]
@@ -262,7 +262,7 @@ Kullback--Leibler divergence is undefined on arbitrary continuous, signed featur
 KL divergence requires valid probability distributions satisfying $p(t) \ge 0$ and $\int p(t) dt = 1$. Network flow features are continuous measurements where $\sum_i x_i \neq 1$. Applying KL divergence directly to raw feature vectors violates information-theoretic axioms.
 \end{proof}
 
-Furthermore, the inference pipeline routes traffic sequentially:
+The sequential flow of the inference pipeline creates another vulnerability:
 \begin{equation}
 \label{eq:cascading_pipeline}
 \begin{aligned}
@@ -503,7 +503,7 @@ To track non-stationary network drift without pulling $u$ toward the mean, basel
 u_t &= u_{t-1} + \text{clip}\left( \Delta u_t, -\delta_{\text{m}} u_{t-1}, \delta_{\text{m}} u_{t-1} \right)
 \end{aligned}
 \end{equation}
-where $\mathcal{W}_t$ is a sliding window of benign energies ($|\mathcal{W}_t| = 1,500$) and $\delta_{\text{max}} = 0.05$.
+where $\mathcal{W}_t$ is a sliding window of benign energies ($|\mathcal{W}_t| = 1,500$) and $\delta_{\text{m}} = 0.05$.
 
 \subsection{Symbolic KAN Extraction}
 To provide auditable decision logic, IR-IDS 2.0 incorporates a Chebyshev-polynomial Kolmogorov--Arnold Network layer:
@@ -535,7 +535,7 @@ Splines with total coefficient weight $\sum_d |c_{i,j,d}| < 0.02$ are pruned. Ac
 A probability distribution $P$ over variables $\mathcal{U}$ is faithful to DAG $G$ if and only if every conditional independence in $P$ is entailed by d-separation in $G$.
 \end{definition}
 
-Prior literature conjectured that intrusion data satisfies faithfulness because underlying protocol mechanics are deterministic. We examine this claim directly.
+Why does network data break graph faithfulness? Because network protocols enforce exact arithmetic identities. Consider packet counters: total bytes must equal forward bytes plus backward bytes ($X_3 = X_1 + X_2$). This is not a statistical correlation—it is a strict conservation law.
 
 \begin{theorem}[Protocol Constraints Induce Faithfulness Violations]
 Let network traffic distribution $P(X)$ satisfy deterministic linear protocol constraints $X_3 = X_1 + X_2$. Then $P(X)$ cannot be faithful to any DAG $G$ where $X_1, X_2 \to Y$.
@@ -780,7 +780,7 @@ To achieve line-rate feasibility on standard server hardware, we propose a two-t
 \end{itemize}
 
 \subsection{Offline vs. Online Computation}
-We clarify that the 21,029-second (~5.8-hour) runtime reported in Table 15 of Gao et al. belonged to the BAMB-PS baseline; the proposed DMB-PS completed in 37.46 seconds. Furthermore, causal feature selection is strictly an offline procedure executed during model training. It does not introduce operational latency in the packet data path.
+We clarify that the 21,029-second (~5.8-hour) runtime reported in Table 15 of Gao et al. belonged to the BAMB-PS baseline; the proposed DMB-PS completed in 37.46 seconds. In addition, causal feature selection is strictly an offline procedure executed during model training. It does not introduce operational latency in the packet data path.
 
 % ============================================================================
 % SECTION VIII: LIMITATIONS & FUTURE WORK
@@ -811,7 +811,7 @@ All experiments run under Python 3.10+ using PyTorch 2.0+, scikit-learn 1.3+, an
 % SECTION X: CONCLUSION
 % ============================================================================
 \section{Conclusion}
-This paper audited prior causal and explainable intrusion detection methods, exposing theoretical and empirical defects including inverted propensity scores, combinatorial grid binning, self-conditioning bugs, invalid vector KL divergence, and the Accuracy Paradox on rare stealth traffic.
+This paper audited prior causal and explainable intrusion detection methods, exposing theoretical and empirical defects including inverted propensity scores, combinatorial grid binning, self-conditioning bugs, invalid vector KL divergence, and the Evaluation Skew on rare stealth traffic.
 
 To address these vulnerabilities, we developed \textbf{IR-IDS 2.0}. The system incorporates Dirichlet-Smoothed Conditional Mutual Information (DS-CMI) with a conditioning cap of three, a cost-sensitive HistGBDT trained under balanced focal loss, multi-class marginalized free-energy autoencoding under a regularized Mahalanobis metric, verified Hosking--Wallis POT-EVT with streaming quantile tracking, and symbolic Chebyshev-KAN extraction. Across five benchmark seeds, IR-IDS 2.0 achieves 83.14\% Macro-F1, isolates unseen Botnet zero-days at 100.00\% recall, raises minority SQL Injection detection to 33.50\%, and limits benign false alarms to 0.94\%. Finally, we established an architectural proposal decoupling sub-microsecond packet parsing from flow-level anomaly arbitration, providing a verifiable foundation for future high-speed intrusion detection research.
 
