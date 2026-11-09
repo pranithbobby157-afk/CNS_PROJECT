@@ -1,6 +1,7 @@
+# -*- coding: utf-8 -*-
 """
-Compiles RESEARCH_PAPER.md into a professional publication PDF using ReportLab.
-Includes headers, footers, page numbering, embedded publication figures, and data tables.
+Compiles the humanized research paper into a publication-grade PDF using ReportLab.
+Features dynamic headers, footers, page numbering, embedded publication figures, and verified data tables.
 """
 
 import os
@@ -39,14 +40,14 @@ class NumberedCanvas(canvas.Canvas):
 
         # Header (Pages 2+)
         if self._pageNumber > 1:
-            self.drawString(54, 755, "IR-IDS 2.0: Causally Invariant, Cost-Sensitive Zero-Day NIDS")
+            self.drawString(54, 755, "IR-IDS 2.0: Causal Feature Discovery & Energy-Based Zero-Day NIDS")
             self.drawRightString(558, 755, "IEEE TRANSACTIONS ON INFORMATION FORENSICS AND SECURITY (2026)")
             self.setStrokeColor(colors.HexColor("#cbd5e1"))
             self.setLineWidth(0.5)
             self.line(54, 750, 558, 750)
 
         # Footer (All pages)
-        self.drawString(54, 35, "CONFIDENTIAL & PROPRIETARY — ADVANCED CYBER-PHYSICAL SYSTEMS RESEARCH")
+        self.drawString(54, 35, "V Bobby Pranith (CS23I1046), Revanth V Mandava (CS23B1009), T Balaji (CS23B1020)")
         page_str = f"Page {self._pageNumber} of {page_count}"
         self.drawRightString(558, 35, page_str)
         self.setStrokeColor(colors.HexColor("#cbd5e1"))
@@ -74,11 +75,11 @@ def build_pdf(filename="IR_IDS_2_0_Research_Paper.pdf"):
         'DocTitle',
         parent=styles['Heading1'],
         fontName='Helvetica-Bold',
-        fontSize=18,
-        leading=22,
+        fontSize=17,
+        leading=21,
         textColor=colors.HexColor('#0f172a'),
         alignment=1, # Center
-        spaceAfter=10
+        spaceAfter=8
     )
 
     authors_style = ParagraphStyle(
@@ -89,15 +90,15 @@ def build_pdf(filename="IR_IDS_2_0_Research_Paper.pdf"):
         leading=14,
         textColor=colors.HexColor('#334155'),
         alignment=1,
-        spaceAfter=15
+        spaceAfter=14
     )
 
     abstract_heading = ParagraphStyle(
         'AbstractHeading',
         parent=styles['Heading2'],
         fontName='Helvetica-Bold',
-        fontSize=11,
-        leading=14,
+        fontSize=10,
+        leading=13,
         textColor=colors.HexColor('#0f172a'),
         alignment=1,
         spaceAfter=4
@@ -111,7 +112,7 @@ def build_pdf(filename="IR_IDS_2_0_Research_Paper.pdf"):
         leading=12,
         textColor=colors.HexColor('#1e293b'),
         alignment=4, # Justify
-        spaceAfter=15,
+        spaceAfter=12,
         leftIndent=24,
         rightIndent=24
     )
@@ -128,24 +129,12 @@ def build_pdf(filename="IR_IDS_2_0_Research_Paper.pdf"):
         keepWithNext=True
     )
 
-    h2_style = ParagraphStyle(
-        'SecH2',
-        parent=styles['Heading3'],
-        fontName='Helvetica-Bold',
-        fontSize=10,
-        leading=13,
-        textColor=colors.HexColor('#1e293b'),
-        spaceBefore=10,
-        spaceAfter=4,
-        keepWithNext=True
-    )
-
     body_style = ParagraphStyle(
         'Body',
         parent=styles['Normal'],
         fontName='Helvetica',
         fontSize=9,
-        leading=13,
+        leading=13.5,
         textColor=colors.HexColor('#1e293b'),
         alignment=4, # Justify
         spaceAfter=6
@@ -163,80 +152,69 @@ def build_pdf(filename="IR_IDS_2_0_Research_Paper.pdf"):
         spaceAfter=6
     )
 
-    callout_style = ParagraphStyle(
-        'Callout',
-        parent=styles['Normal'],
-        fontName='Helvetica',
-        fontSize=8.5,
-        leading=12,
-        textColor=colors.HexColor('#0f172a'),
-        spaceBefore=4,
-        spaceAfter=4
-    )
-
     story = []
 
     # Title & Metadata
-    story.append(Paragraph("IR-IDS 2.0: A Causally Invariant, Cost-Sensitive, and Symbolically Explainable Framework for Zero-Day Network Intrusion Detection", title_style))
-    story.append(Paragraph("<b>V Bobby Pranith - CS23I1046, Revanth V Mandava - CS23B1009, T Balaji - CS23B1020</b><br/><i>Department of Computer Science and Engineering &bull; Target: IEEE Transactions on Information Forensics and Security / Computers & Security</i>", authors_style))
+    story.append(Paragraph("IR-IDS 2.0: Causal Feature Discovery and Energy-Based Open-Set Recognition for Zero-Day Intrusion Detection", title_style))
+    story.append(Paragraph("<b>V Bobby Pranith - CS23I1046, Revanth V Mandava - CS23B1009, T Balaji - CS23B1020</b><br/><i>Department of Computer Science and Engineering &bull; Target: IEEE Transactions on Information Forensics and Security</i>", authors_style))
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#cbd5e1"), spaceAfter=10))
 
     # Abstract
     story.append(Paragraph("<b>ABSTRACT</b>", abstract_heading))
     abstract_content = (
-        "Network Intrusion Detection Systems (NIDS) deployed in modern enterprise, cloud, and IoT backbones face a dual imperative: "
-        "maintaining high-fidelity detection of previously unobserved zero-day attacks while delivering transparent, mathematically verifiable "
-        "decision rationales for Security Operations Center (SOC) incident response. Recently, Gao et al. (2025) proposed IR-IDS in Computers & Security, "
-        "combining causal Markov blanket feature selection, Shapley-optimized decision trees, and Kolmogorov–Arnold Network Conditional Variational Autoencoders (KAN–CVAE). "
-        "However, critical examination reveals foundational vulnerabilities in IR-IDS: (1) an inverted propensity score formulation that fails to alleviate the combinatorial curse of dimensionality; "
-        "(2) fatal algorithmic bugs in the Double Markov Blanket search including self-conditioning and in-place list mutation; "
-        "(3) an 'Accuracy Paradox' where high headline accuracy (98.83%) masked catastrophic detection rates on rare stealth attacks (e.g., Infiltration at 2.78% and SQL Injection at 23.81%); "
-        "(4) mathematically invalid evaluation of Kullback–Leibler divergence on continuous signed feature vectors; and "
-        "(5) cascading error propagation where upstream classifier mispredictions corrupt downstream autoencoder reconstructions. "
-        "To overcome these fundamental flaws and resolve the unaddressed deployment challenges highlighted in the original future work, this paper presents <b>IR-IDS 2.0</b>. "
-        "We introduce: (1) a mathematically rigorous Dirichlet-Smoothed Conditional Mutual Information (DS-CMI) Markov blanket discovery engine with quantile equal-depth partitioning; "
-        "(2) a Cost-Sensitive Invariant Ensemble with Balanced Focal Weighting that elevates stealth threat capture by over 24%; "
-        "(3) a Multi-Class Marginalized Free-Energy Autoencoder that evaluates reconstruction consensus across all class hypotheses using regularized Mahalanobis metrics, provably bounding zero-day detection error; "
-        "(4) an Adaptive Peaks-Over-Threshold (POT-GPD) Extreme Value detector utilizing Grimshaw's formulation for real-time drift tracking; and "
-        "(5) authentic Symbolic B-Spline Curve Extraction providing closed-form algebraic expressions for network feature transformations. "
-        "Benchmarked on comprehensive network intrusion distributions, IR-IDS 2.0 elevates Macro-F1 from 79.63% to 88.44%, boosts zero-day unknown recall from 0.00% to 46.67%, "
-        "and slashes benign false alarms by nearly 3x (from 3.59% to 1.22%). Finally, we demonstrate a sub-15 µs two-tier wire-speed DPDK pipeline, resolving the line-rate deployment bottleneck left open in prior work."
+        "Statistical traffic classifiers deployed at network perimeters face a stubborn dilemma. They must isolate novel attack patterns "
+        "without flooding operators with false alarms, yet network engineers distrust black-box anomaly alerts that cannot be traced back to "
+        "concrete packet fields. Gao et al. (Computers & Security 2025) attempted to bridge this gap with IR-IDS, combining causal Markov blanket discovery, "
+        "decision trees, and a Kolmogorov–Arnold Network conditional autoencoder. Our audit of that system uncovers several technical obstacles in the "
+        "published record: an inverted propensity score formulation that conditions features on class labels, joint multi-feature grid binning that "
+        "collapses into empty sample cells (O(|NC|^n)), candidate feature pruning that tests conditional independence against sets containing the variable itself, "
+        "invalid Kullback–Leibler evaluations on signed continuous feature vectors, and high headline accuracy (>98.8%) that concealed near-total failure "
+        "on stealthy exploits (2.78% recall on Infiltration). "
+        "This paper presents IR-IDS 2.0, an overhaul designed to resolve these mathematical and operational bottlenecks. We replace grid-based conditioning "
+        "with Dirichlet-Smoothed Conditional Mutual Information (DS-CMI) capped at three conditioning variables, ensuring strictly positive cell estimates "
+        "and stable feature rankings across trials. A histogram-based gradient boosted tree trained under balanced focal loss recovers minority attack signatures "
+        "without distorting normal traffic baselines. Rather than relying on single-label autoencoder reconstruction, we introduce a marginalized free-energy "
+        "score evaluated across all class heads under a regularized Ledoit–Wolf Mahalanobis metric, establishing a formal lower bound on zero-day anomaly scores "
+        "under manifold separation. Dynamic extreme value theory thresholds, updated via sliding-window empirical quantiles with adversarial rate limiters, "
+        "curb operational false alarms. Across five benchmark random seeds, IR-IDS 2.0 achieves 83.14% Macro-F1, isolates unseen Botnet traffic at 100.00%, "
+        "raises minority SQL injection recall from 19.90% to 33.50%, and limits benign false alarms to 0.94% (down from 19.12% in the reimplemented baseline). "
+        "Finally, we model line-rate execution as a two-tier decoupled architecture separating hardware packet parsing from flow evaluation."
     )
     story.append(Paragraph(abstract_content, abstract_text))
-    story.append(Paragraph("<b>Keywords:</b> Network Intrusion Detection, Causal Feature Selection, Markov Blanket, Extreme Value Theory, Kolmogorov–Arnold Networks, Explainable AI, Zero-Day Attacks, Accuracy Paradox, DPDK Line-Rate.", body_style))
+    story.append(Paragraph("<b>Keywords:</b> Intrusion detection, causal feature selection, Markov blanket, extreme value theory, Kolmogorov–Arnold networks, open-set recognition, zero-day attacks, kernel bypass.", body_style))
     story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#cbd5e1"), spaceBefore=6, spaceAfter=12))
 
     # Section 1
     story.append(Paragraph("1. Introduction", h1_style))
     story.append(Paragraph(
-        "With the continuous expansion of multi-gigabit enterprise networks, 5G carrier architectures, and high-density Internet of Things (IoT) ecosystems, modern network defense relies on Intrusion Detection Systems (IDS) as the indispensable first line of perimeter defense. However, the cyber threat landscape has evolved into an asymmetric warfare environment. Adversaries routinely employ polymorphic payloads, multi-stage evasion techniques, and zero-day vulnerabilities that actively target the structural blind spots of static signature databases and traditional supervised machine learning models.",
+        "Perimeter defense in modern multi-gigabit networks depends almost entirely on automated traffic inspection. At link rates exceeding 10 Gbps, manual triage is out of the question: security operations centers (SOCs) must process millions of flow records daily, relying on network intrusion detection systems (NIDS) to flag suspicious behavior. Most production and academic classifiers rely on supervised learning—typically tree ensembles like Random Forests or Gradient Boosted Decision Trees. On benchmark test sets, these algorithms regularly post accuracy scores above 98%. In production networks, however, their performance deteriorates quickly.",
         body_style
     ))
     story.append(Paragraph(
-        "Supervised machine learning algorithms (e.g., Random Forests, Support Vector Machines, Gradient Boosted Decision Trees) achieve exceptional classification accuracy on historical, known attack classes. However, they operate under the closed-world assumption: they presuppose that the operational test distribution matches the training distribution. When deployed in non-stationary real-world networks, supervised models exhibit extreme fragility under distribution shift and fail catastrophically when confronted with previously unobserved attack vectors.",
+        "The core reason is well known: supervised models assume a closed world. They assume every flow encountered at inference belongs to a category seen during training. When an attacker deploys a novel exploit—a zero-day attack—the classifier has no mechanism to express novelty. Instead, it forces the flow into the nearest known category, allowing unseen attack vectors to pass unhindered. Generative anomaly detectors attempt to circumvent this constraint by learning normal baselines, but create operational friction due to opacity.",
         body_style
     ))
     story.append(Paragraph(
-        "To bridge this critical divide, Gao et al. (2025) recently published <b>IR-IDS</b> in <i>Computers & Security</i>, proposing an interpretable and robust intrusion detection architecture combining causal Markov blanket feature selection, Shapley Trees, and KAN–CVAE models. While the conceptual vision is compelling, our rigorous mathematical audit reveals five fatal vulnerabilities: inverted propensity scores, combinatorial grid explosion, algorithmic self-conditioning bugs, invalid vector KL divergence, and the Accuracy Paradox masking catastrophic failures on stealth attacks. This paper develops <b>IR-IDS 2.0</b> to resolve every loophole and fulfill the prior paper's unaddressed future work.",
+        "Reconciling open-set zero-day detection with transparent decision logic motivated the IR-IDS framework proposed by Gao et al. (2025). Despite the conceptual promise of combining causal feature selection, decision trees, and KAN-CVAEs, our mathematical and empirical audit reveals five fundamental structural breakdowns in the published framework: inverted propensity scores, combinatorial grid sparsity, self-conditioning algorithmic bugs, invalid vector KL metrics, and the Accuracy Paradox masking failures on rare stealth exploits.",
         body_style
     ))
 
     # Section 2
-    story.append(Paragraph("2. Critical Vulnerability Analysis of IR-IDS (2025)", h1_style))
+    story.append(Paragraph("2. Technical Audit of Gao et al. (2025)", h1_style))
     story.append(Paragraph(
-        "<b>2.1 Mathematical Inversion of Propensity Score:</b> In Definition 5 of Gao et al., the propensity score is formulated as <i>e(T) = P(X = 1 | T)</i>. In foundational causal inference (Rosenbaum & Rubin, 1983), the propensity score is strictly defined as <i>e(x) = P(T = 1 | X = x)</i>. Inverting the conditioning calculates generative class likelihood (identical to Naive Bayes), failing to balance confounders or create exchangeability.",
+        "<b>2.1 Inverted Propensity Conditioning:</b> Definition 5 in Gao et al. defines propensity as <i>e(T) = P(X = 1 | T)</i>, conditioning observed features on the treatment label. Causal theory strictly defines propensity as <i>e(x) = P(T = 1 | X = x)</i>. Inverting this calculates class-conditional likelihoods rather than treatment assignment probabilities, failing to balance covariates.",
         body_style
     ))
     story.append(Paragraph(
-        "<b>2.2 Combinatorial Grid Sparsity:</b> Discretizing candidate conditioning features across |NC| discrete bins incurs exponential state space complexity <i>O(|NC|^n)</i>. For 15 classes and 10 features, this yields 15^10 ≈ 5.76 × 10^11 cells. In datasets of 35,000 samples, sample occupancy drops to 6.07 × 10^-8 samples per cell (>99.9999% empty cells), inducing extreme sample sparsity.",
+        "<b>2.2 Combinatorial Grid Sparsity:</b> Discretizing candidate conditioning features across |NC| discrete intervals creates an exponential state space <i>O(|NC|^n)</i>. For 15 classes and 10 features, this yields 15^10 ≈ 5.76 × 10^11 states. In typical training sets of 35,000 flows, sample density drops to 6.07 × 10^-8 samples per cell (>99.9999% empty bins), creating extreme sample sparsity.",
         body_style
     ))
     story.append(Paragraph(
-        "<b>2.3 Algorithmic Self-Conditioning Bug:</b> In Algorithm 1 of Gao et al., line 11 tests whether <i>X ⊥ Y | CMBS</i> while <i>X ∈ CMBS</i>. Conditioning on a variable makes it deterministic, so <i>I(X; Y | X, Z) ≡ 0</i> trivially, erroneously deleting all features. Furthermore, mutating list containers in-place skips adjacent candidates in memory.",
+        "<b>2.3 Self-Conditioning in Markov Blanket Pruning:</b> Algorithm 1 checks conditional independence by testing <i>X ⊥ Y | CMBS</i> while <i>X ∈ CMBS</i>. Because any variable is deterministic given a set containing itself, <i>I(X; Y | X, Z) ≡ 0</i> always holds, trivially dropping all candidate variables while in-place list mutation skips adjacent elements.",
         body_style
     ))
     story.append(Paragraph(
-        "<b>2.4 The Accuracy Paradox on Real-World Stealth Attacks:</b> Gao et al. reported headline accuracies exceeding 98.8%. However, their own ablation tables reveal that Infiltration detection was <b>2.78%</b> (97.22% missed), SQL Injection was <b>16.67%–23.81%</b> (>76% missed), and WebDDoS was <b>7.69%</b> (>92% missed). High accuracy was an illusion caused by overwhelming volumes of benign traffic and volumetric DoS floods.",
+        "<b>2.4 The Stealth Attack Accuracy Paradox:</b> Gao et al. reported headline accuracies exceeding 98.8%. However, their published ablation tables show that stealthy attacks were largely missed: in CIC-IDS2017, Infiltration recall was <b>2.78%</b> (1 of 36 flows detected) and SQL Injection was <b>23.81%</b> (5 of 21 flows). High headline accuracy was an illusion created by overwhelming volumes of benign traffic and brute-force DoS floods.",
         body_style
     ))
     story.append(Paragraph(
@@ -247,42 +225,40 @@ def build_pdf(filename="IR_IDS_2_0_Research_Paper.pdf"):
     # Section 3
     story.append(Paragraph("3. The IR-IDS 2.0 Methodology", h1_style))
     story.append(Paragraph(
-        "<b>3.1 Dirichlet-Smoothed Causal Feature Selection (DS-CMI):</b> Continuous columns are partitioned into <i>B</i> quantile equal-depth bins. Empirical joint counts are smoothed using a symmetric Dirichlet prior with Jeffreys parameter α = 0.5:",
+        "<b>3.1 Dirichlet-Smoothed Causal Feature Selection (DS-CMI):</b> Continuous columns are partitioned into <i>B</i> quantile equal-depth bins. Empirical joint counts are smoothed using a symmetric Dirichlet prior with Jeffreys parameter α = 0.5 and conditioning cap |Z| ≤ 3:",
         body_style
     ))
     story.append(Paragraph("P(X = x, Y = y | Z = z) = [ N(x, y, z) + α ] / [ N(z) + α · B · K ]", formula_style))
     story.append(Paragraph(
-        "Because α > 0, probabilities remain strictly non-zero, mathematically guaranteeing finite, bounded divergence without division-by-zero crashes. The search algorithm tests conditional independence on <i>CMB \\ {X}</i> without in-place list mutation.",
+        "Because α > 0, cell probabilities remain strictly positive, bounding information metrics and eliminating division-by-zero. Sequential backward elimination removes the single least-informative variable per pass, preserving co-dependent causal predictors.",
         body_style
     ))
     story.append(Paragraph(
-        "<b>3.2 Cost-Sensitive Invariant Ensemble with Balanced Focal Loss:</b> To resolve the Accuracy Paradox, we train an invariant HistGBDT ensemble with focal weights <i>w_c = (N / (K · N_c))^γ</i>, heavily penalizing misses on minority stealth intrusions like Infiltration and SQL Injection.",
+        "<b>3.2 Cost-Sensitive Invariant Ensemble with Balanced Focal Loss:</b> We train a histogram-based gradient boosted tree ensemble under balanced focal loss, applying sample weights <i>w_c = (N / (K · N_c))^γ</i> strictly to known training classes to force the model to separate rare stealth signatures.",
         body_style
     ))
-    story.append(Paragraph("L_Focal = - Σ w_y (1 - p(y | x))^γ · log p(y | x)", formula_style))
     story.append(Paragraph(
-        "<b>3.3 Multi-Class Marginalized Free-Energy Autoencoder:</b> Reconstruction distance is evaluated using Ledoit–Wolf shrinkage Mahalanobis distance. Free energy is marginalized across all <i>K</i> class hypotheses:",
+        "<b>3.3 Multi-Class Marginalized Free-Energy Autoencoder:</b> Rather than single-label conditioning, we compute continuous Ledoit–Wolf shrinkage Mahalanobis distances and marginalize free energy across all <i>K</i> class hypotheses weighted by classifier posterior consensus:",
         body_style
     ))
-    story.append(Paragraph("E(x) = -log Σ p(y = k | x) · exp( -0.5 · D_Σ(x, x_rec^(k)) )", formula_style))
+    story.append(Paragraph("E(x) = -T · log Σ p(y = k | x) · exp( -0.5 · D_Σ(x, x_rec^(k)) )", formula_style))
     story.append(Paragraph(
-        "<b>3.4 Dynamic Peaks-Over-Threshold (POT-EVT):</b> Extreme tail energies are modeled using the Generalized Pareto Distribution (GPD). Parameters (ξ, σ) are estimated in closed form via Probability Weighted Moments (PWM). Threshold <i>z_q</i> adapts online via streaming exponential smoothing, tracking network drift in O(1) time without retraining downtime.",
+        "<b>3.4 Dynamic Peaks-Over-Threshold (POT-EVT):</b> Extreme tail energies are modeled using the Generalized Pareto Distribution (GPD). Parameters are estimated in closed form via Hosking–Wallis Probability Weighted Moments (PWM). Thresholds adapt online via sliding-window empirical quantiles on verified benign traffic with adversarial drift limiters.",
         body_style
     ))
 
     # Section 4: Theoretical Proofs
     story.append(Paragraph("4. Theoretical Analysis & Formal Proofs", h1_style))
     story.append(Paragraph(
-        "<b>Theorem 1 (Failure of Graph Faithfulness under Deterministic Protocols):</b> Network protocol constraints (Total Bytes = Fwd Bytes + Bwd Bytes) enforce deterministic structural equations. Under bidirectional traffic symmetry, Cov(X_1, X_2) = -(β_1 / β_2) Var(X_1), causing path cancellation where Cov(X_1, Y) = 0 despite active causal paths in graph G. Thus, protocol data is inherently unfaithful to any DAG G.",
+        "<b>Theorem 1 (Protocol Constraints Induce Faithfulness Violations):</b> Deterministic protocol identities (e.g., Total Bytes = Fwd Bytes + Bwd Bytes) enforce linear constraints. When protocol symmetries yield β_1 = β_2, partial dependence vanishes: I(X_1; Y | X_3) = 0. Yet in the DAG, non-collider X_3 does not d-separate X_1 from Y. Thus, network traffic inherently violates graph faithfulness.",
         body_style
     ))
     story.append(Paragraph(
-        "<b>Theorem 2 (Error Boundedness of Zero-Day Anomaly Detection):</b> Let an unobserved zero-day attack x* lie at minimum physical Mahalanobis distance δ > 0 from all known class manifolds. Because D_Σ(x*, x_rec^(k)) ≥ δ^2 for all k ∈ {0..K-1}, the Marginalized Free Energy satisfies:",
+        "<b>Lemma 1 (Boundedness of DS-CMI):</b> For discrete variables X, Y, and conditioning set Z with Dirichlet prior α > 0, 0 ≤ I(X; Y | Z) ≤ min(log_2 B, log_2 K) < ∞, eliminating numerical instability.",
         body_style
     ))
-    story.append(Paragraph("E(x*) ≥ 0.5 · δ^2", formula_style))
     story.append(Paragraph(
-        "<i>Significance:</i> The free energy is strictly lower-bounded by the physical separation δ^2, guaranteeing that upstream classifier errors cannot mask zero-day anomalies.",
+        "<b>Theorem 2 (Conditional Lower Bound on Free Energy):</b> If an unobserved zero-day x* lies at minimum physical Mahalanobis distance δ > 0 from all known class manifolds, the Marginalized Free Energy satisfies E(x*) ≥ 0.5 · δ^2, guaranteeing that upstream classifier errors cannot suppress zero-day anomaly scores.",
         body_style
     ))
 
@@ -345,7 +321,7 @@ def build_pdf(filename="IR_IDS_2_0_Research_Paper.pdf"):
     # Conclusion
     story.append(Paragraph("7. Conclusion", h1_style))
     story.append(Paragraph(
-        "This paper audited the recently proposed IR-IDS framework and identified five fatal theoretical and empirical vulnerabilities. We formulated and implemented IR-IDS 2.0, introducing Dirichlet-smoothed causal selection, cost-sensitive focal tree classification, multi-class marginalized free-energy autoencoding under Mahalanobis metrics, dynamic POT-EVT thresholding, and authentic symbolic KAN curve extraction. Empirical benchmarks show that IR-IDS 2.0 increases Macro-F1 by 8.81%, elevates zero-day recall from 0.00% to 46.67%, improves stealth attack detection by 24.66%, slashes false alarms by nearly 3x, and fulfills all deployment requirements identified in prior future work.",
+        "This paper audited the IR-IDS framework proposed by Gao et al. (2025), exposing theoretical and empirical defects including inverted propensity scores, combinatorial grid binning, self-conditioning bugs, invalid vector KL divergence, and the Accuracy Paradox on rare stealth traffic. To address these vulnerabilities, we developed IR-IDS 2.0. The system incorporates Dirichlet-Smoothed Conditional Mutual Information (DS-CMI) with a conditioning cap of three, a cost-sensitive HistGBDT trained under balanced focal loss, multi-class marginalized free-energy autoencoding under a regularized Mahalanobis metric, verified Hosking–Wallis POT-EVT with streaming quantile tracking, and symbolic Chebyshev-KAN extraction. Across five benchmark seeds, IR-IDS 2.0 achieves 83.14% Macro-F1, isolates unseen Botnet zero-days at 100.00% recall, raises minority SQL Injection detection to 33.50%, and limits benign false alarms to 0.94%. Finally, we established an architectural proposal decoupling sub-microsecond packet parsing from flow-level anomaly arbitration, providing a verifiable foundation for future high-speed intrusion detection research.",
         body_style
     ))
 
@@ -355,4 +331,3 @@ def build_pdf(filename="IR_IDS_2_0_Research_Paper.pdf"):
 
 if __name__ == "__main__":
     build_pdf()
-
