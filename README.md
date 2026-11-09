@@ -118,15 +118,25 @@ python build_paper_pdf.py
 
 ---
 
+## 👥 Authors & Contributors
+
+- **V Bobby Pranith** — `CS23I1046`
+- **Revanth V Mandava** — `CS23B1009`
+- **T Balaji** — `CS23B1020`
+
+*Department of Computer Science and Engineering, Indian Institute of Information Technology, Design and Manufacturing (IIITDM), Kancheepuram, India.*
+
+---
+
 ## 📝 Citation & Contact
 For inquiries or citation metadata:
 ```bibtex
 @article{irids2026,
   title={{IR-IDS 2.0: A Causally Invariant, Cost-Sensitive, and Symbolically Explainable Framework for Zero-Day Network Intrusion Detection}},
-  author={{Research Group on Advanced Cyber-Physical Systems}},
+  author={Pranith, V Bobby and Mandava, Revanth V and Balaji, T},
   journal={IEEE Transactions on Information Forensics and Security},
   year={2026},
   note={Under Review}
 }
 ```
-*Corresponding Author:* `research@cns-security.org`
+*Repository Maintainer:* [V Bobby Pranith](https://github.com/pranithbobby157-afk)
