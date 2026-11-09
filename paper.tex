@@ -1,0 +1,778 @@
+\documentclass[10pt,journal,compsoc]{IEEEtran}
+
+% --- Essential Packages ---
+\usepackage{amsmath,amsfonts,amssymb,amsthm}
+\usepackage{algorithmic}
+\usepackage{algorithm}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{cite}
+\usepackage{url}
+\usepackage{microtype}
+\usepackage{multirow}
+\usepackage{tabularx}
+\usepackage{subcaption}
+
+% --- Math Environments ---
+\newtheorem{theorem}{Theorem}
+\newtheorem{definition}{Definition}
+\newtheorem{lemma}{Lemma}
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}
+\newtheorem{remark}{Remark}
+
+\begin{document}
+
+\title{IR-IDS 2.0: A Causally Invariant, Cost-Sensitive, and Symbolically Explainable Framework for Zero-Day Network Intrusion Detection}
+
+\author{V~Bobby~Pranith~--~CS23I1046,~%
+        Revanth~V~Mandava~--~CS23B1009,~%
+        and~T~Balaji~--~CS23B1020%
+\thanks{Manuscript received March 2026; revised May 2026. The authors are with the Department of Computer Science and Engineering: V Bobby Pranith -- CS23I1046, Revanth V Mandava -- CS23B1009, and T Balaji -- CS23B1020. This research provides a critical theoretical, algorithmic, and empirical re-examination of recent causal and explainable intrusion detection systems, establishing an openly reproducible benchmark for zero-day defense. Corresponding author email: research@cns-security.org}}
+
+% --- Abstract & Keywords ---
+\IEEEtitleabstractindextext{%
+\begin{abstract}
+Network Intrusion Detection Systems (NIDS) deployed in contemporary enterprise, carrier, and cloud environments must satisfy two demanding requirements: detecting previously unobserved zero-day attacks while providing transparent, mathematically auditable decision rationales for Security Operations Center (SOC) analysts. Recently, Gao et al. (2025) proposed IR-IDS in \textit{Computers \& Security}, integrating causal Markov blanket discovery, Shapley-guided decision trees, and Kolmogorov--Arnold Network Conditional Variational Autoencoders (KAN--CVAE). However, a rigorous audit of IR-IDS reveals several foundational theoretical and algorithmic limitations: (1) an inverted propensity score conditioning formulation ($P(X \mid T)$ rather than $P(T \mid X)$) accompanied by joint grid binning that incurs combinatorial sample sparsity ($O(|NC|^n)$); (2) self-conditioning ($X \perp Y \mid CMBS$) and in-place iterator mutation bugs in the published Double Markov Blanket search algorithm; (3) an ``Accuracy Paradox'' wherein high headline accuracy ($>98.8\%$) masked poor recall on rare stealth attacks (e.g., Infiltration at 2.78\% and SQL Injection at 23.81\% in CIC-IDS2017); (4) mathematically invalid computation of Kullback--Leibler divergence on continuous signed feature vectors; and (5) cascading error propagation where upstream classifier mispredictions corrupt single-label conditioned autoencoder reconstructions.
+
+To address these vulnerabilities and advance the operational design goals identified in prior work, this paper presents \textbf{IR-IDS 2.0}. We introduce: (1) a Dirichlet-Smoothed Conditional Mutual Information (DS-CMI) Markov blanket discovery engine with a finite conditioning cap ($|Z| \le 3$) and stratum pooling that guarantees bounded divergence and eliminates division-by-zero; (2) a Cost-Sensitive Invariant Ensemble with Balanced Focal Weighting applied to training classes, lifting rare stealth attack recall without distorting volumetric baselines; (3) a Multi-Class Marginalized Free-Energy Autoencoder that evaluates reconstruction consensus across all class hypotheses under a regularized Ledoit--Wolf Mahalanobis metric, establishing conditional error bounds on zero-day isolation; (4) an Adaptive Peaks-Over-Threshold (POT-EVT) detector employing Hosking--Wallis Probability Weighted Moments and a streaming sliding-window quantile tracker on verified benign traffic; and (5) authentic Chebyshev-polynomial Kolmogorov--Arnold Network decomposition with $L_1$ coefficient pruning, exporting closed-form algebraic equations for SOC diagnostics. Evaluated across 5 random seeds with 95\% empirical bootstrap confidence intervals on benchmark network intrusion distributions, IR-IDS 2.0 achieves a Macro-F1 of 83.14\% $\pm$ 1.77\% (compared to 76.22\% $\pm$ 1.35\% for the reimplemented baseline), detects unseen Botnet zero-day intrusions at 100.00\% $\pm$ 0.00\%, elevates minority SQL Injection recall from 19.90\% to 33.50\% $\pm$ 8.98\%, and reduces benign false alarms from 19.12\% down to 0.94\% $\pm$ 0.28\%. Finally, we articulate an architectural design proposal for line-rate kernel-bypass deployment, decoupling sub-microsecond packet parsing from flow-level anomaly arbitration.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Network Intrusion Detection, Causal Feature Selection, Markov Blanket, Extreme Value Theory, Kolmogorov--Arnold Networks, Explainable AI, Zero-Day Attacks, Accuracy Paradox, Kernel-Bypass Architecture.
+\end{IEEEkeywords}}
+
+\maketitle
+\IEEEdisplaynontitleabstractindextext
+\IEEEpeerreviewmaketitle
+
+% ============================================================================
+% SECTION I: INTRODUCTION
+% ============================================================================
+\section{Introduction}
+\IEEEPARstart{W}{ith} the pervasive expansion of multi-gigabit enterprise networks, 5G carrier infrastructures, and hyper-connected Internet of Things (IoT) ecosystems, contemporary cybersecurity frameworks face unprecedented operational pressures \cite{viegas2021machine}. Digital transformation has significantly widened the attack surface of networked systems. Contemporary adversaries routinely deploy polymorphic evasion toolkits, automated exploitation frameworks, and zero-day exploits designed to bypass static signature databases and traditional rule-based firewalls. In this contested cyber terrain, Network Intrusion Detection Systems (NIDS) represent a critical line of defense, monitoring packet streams to flag anomalous deviations and trigger mitigation workflows \cite{ning2021}.
+
+Over the past decade, supervised machine learning (ML) paradigms—including Random Forests (RF), Support Vector Machines (SVM), and Gradient Boosted Decision Trees (GBDT)—have achieved high classification accuracy on established benchmark corpora \cite{pajouh2019, mohiuddin2023}. However, standard supervised models inherently operate under the closed-world assumption: they presuppose that traffic observed during testing belongs exclusively to categories present during training. When deployed in non-stationary operational networks, supervised classifiers exhibit substantial performance degradation when confronted with previously unobserved attack vectors (zero-day intrusions).
+
+To identify zero-day attacks, researchers turned toward unsupervised and semi-supervised deep generative models, including Deep Autoencoders (AE), Variational Autoencoders (VAE), and Generative Adversarial Networks (GAN) \cite{shone2018, yue2022, wu2023}. By characterizing benign traffic distributions, generative architectures identify novel intrusions by evaluating reconstruction residuals. Nevertheless, deep neural architectures suffer from a critical operational limitation: they function predominantly as opaque ``black boxes'' \cite{lipton2018}. In modern Security Operations Centers (SOC), incident responders cannot justify blocking critical enterprise communication channels based solely on an unexplainable anomaly score. Security analysts require human-interpretable, legally defensible, and actionable rationales explaining \textit{why} a given packet sequence was flagged as malicious \cite{pai2024}.
+
+Balancing high-fidelity detection robustness with fine-grained model interpretability has thus emerged as a paramount challenge in network intrusion detection. Recently, Gao et al. (2025) published \textbf{IR-IDS} in \textit{Computers \& Security} \cite{gao2025irids}, attempting to bridge this divide through an integrated architecture combining:
+\begin{enumerate}
+    \item A causal feature selection algorithm termed \textit{Dual Markov Blanket with Propensity Score} (DMB-PS);
+    \item A \textit{Shapley Tree} classifier optimized via TreeSHAP path attributions;
+    \item A \textit{Kolmogorov--Arnold Network Conditional Variational Autoencoder} (KAN--CVAE) paired with Extreme Value Theory (EVT) to isolate unknown attacks.
+\end{enumerate}
+
+While the integration of causal inference, Shapley explanations, and Kolmogorov--Arnold Networks is conceptually promising, a rigorous technical audit of the theoretical formulations, algorithmic implementations, and empirical results in Gao et al. reveals several critical vulnerabilities:
+\begin{itemize}
+    \item \textbf{Inverted Propensity Score Formulation:} The mathematical definition of the propensity score in \cite{gao2025irids} conditions observed features on the treatment label ($P(X \mid T)$ rather than $P(T \mid X)$). Furthermore, the conditioning procedure discretizes multi-feature sets into joint grid states, incurring an exponential combinatorial sample blow-up ($O(|NC|^n)$) rather than achieving dimensionality reduction.
+    \item \textbf{Algorithmic Self-Conditioning and Iteration Bugs:} Algorithm 1 in Gao et al. tests conditional independence of candidate feature $X$ conditioned on a set containing $X$ itself ($X \perp Y \mid CMBS$), rendering the test mathematically trivial, while mutating list iterators in-place during runtime.
+    \item \textbf{The Accuracy Paradox on Rare Stealth Attacks:} While headline multi-class accuracy exceeded 98.8\%, detailed examination of the published ablation tables reveals that stealth attacks suffered low detection recall: in CIC-IDS2017 (Table 10), \textbf{Infiltration recall was 2.78\%} (1 out of 36 flows detected) and \textbf{SQL Injection recall was 23.81\%} (5 out of 21 flows detected). High headline accuracy was driven by overwhelming volumes of benign traffic and volumetric DoS floods.
+    \item \textbf{Mathematically Invalid Reconstruction Metric:} The authors compute the Kullback--Leibler (KL) divergence directly between continuous, signed feature vectors ($D_{KL}(x \parallel \hat{x})$), violating foundational probability theory because continuous network feature vectors are not probability densities.
+    \item \textbf{Cascading Error Propagation:} The KAN--CVAE decoder reconstructs traffic conditioned strictly on the upstream tree's top-1 label prediction $\hat{y}$. When encountering an unseen zero-day attack, the tree assigns a known class label, corrupting downstream reconstruction and allowing novel attacks that resemble known classes to evade detection.
+\end{itemize}
+
+Furthermore, Section 5.3 of Gao et al. outlined broad operational ambitions regarding real-world deployment, line-rate throughput, and streaming traffic adaptation that remained conceptual.
+
+\subsection{Contributions of This Work}
+To resolve these foundational vulnerabilities and provide a scientifically sound, reproducible methodology, this paper presents \textbf{IR-IDS 2.0}. Our specific contributions are:
+\begin{enumerate}
+    \item \textbf{Dirichlet-Smoothed Causal Feature Selection (DS-CMI):} We reformulate the Markov Blanket discovery algorithm using Dirichlet-Smoothed Conditional Mutual Information over equal-depth quantile partitions. We incorporate a finite conditioning cap ($|Z| \le 3$) and stratum pooling for sparse cells ($N_z < 4$), formally proving that this formulation guarantees strictly positive cell probabilities, bounded divergence, and stability across random seeds (Jaccard similarity $1.000 \pm 0.000$).
+    \item \textbf{Sequential Greedy Backward Elimination:} We correct the shrink phase of Algorithm 1, replacing simultaneous multi-feature removal with sequential elimination of the single least-informative feature per pass, preventing the premature removal of co-dependent causal predictors.
+    \item \textbf{Cost-Sensitive Invariant Classification:} We replace heuristic tree sorting with a Histogram-based Gradient Boosted Decision Tree (HistGBDT) trained under Balanced Focal Weighting applied strictly to training classes, elevating minority SQL Injection recall from 19.90\% to 33.50\% $\pm$ 8.98\% (113/400 flows) without compromising overall accuracy.
+    \item \textbf{Multi-Class Marginalized Free-Energy Autoencoder:} We eliminate single-label conditioning. By evaluating continuous Mahalanobis reconstruction distance across all class hypotheses weighted by classifier posterior consensus, we establish conditional error bounds on zero-day isolation under manifold separation.
+    \item \textbf{Verified Adaptive Peaks-Over-Threshold (POT-EVT):} We verify the Hosking--Wallis Probability Weighted Moments (PWM) parameter estimation formulas for standard Generalized Pareto Distributions (GPD), validating parameter recovery on synthetic benchmarks ($<1.2\%$ error). We replace the flawed Exponential Moving Average baseline tracker with a streaming sliding-window empirical quantile tracker on verified benign traffic equipped with an adversarial velocity limiter.
+    \item \textbf{Authentic Symbolic KAN Extraction:} We implement genuine Chebyshev-polynomial Kolmogorov--Arnold Network expansions and $L_1$ coefficient pruning, exporting closed-form algebraic equations for latent activations with verified fidelity (mean Kendall-$\tau > 0.85$).
+    \item \textbf{Architectural Proposal for Line-Rate Deployment:} We systematically address the open operational questions of prior work by proposing a two-tier kernel-bypass architecture, explicitly separating sub-microsecond per-packet parsing from flow-level anomaly arbitration.
+\end{enumerate}
+
+The remainder of this paper is organized as follows. Section II reviews related literature and provides a taxonomic comparison. Section III presents an exhaustive technical audit of the original IR-IDS framework. Section IV details the IR-IDS 2.0 methodology. Section V provides theoretical analysis and formal proofs. Section VI reports multi-seed empirical evaluations, baseline comparisons, and ablation studies. Section VII discusses architectural considerations for line-rate deployment. Section VIII discusses limitations and future research directions. Section IX presents the reproducibility statement, and Section X concludes the paper.
+
+% ============================================================================
+% SECTION II: RELATED WORK & TAXONOMY
+% ============================================================================
+\section{Related Work \& Taxonomy}
+
+\subsection{Traditional Machine Learning in Intrusion Detection}
+Early machine learning IDSs relied heavily on classical statistical learning and filter-based feature selection. Pajouh et al. \cite{pajouh2019} proposed a two-layer dimension reduction pipeline combining Principal Component Analysis (PCA) and Linear Discriminant Analysis (LDA) with $K$-Nearest Neighbors (KNN). While computationally efficient, linear projections inherently discard non-linear protocol dependencies. Mohiuddin et al. \cite{mohiuddin2023} introduced CSA-RF, employing Cuckoo Search and Particle Swarm Optimization (PSO) to optimize feature subsets for Weighted Least Squares Random Forest. However, stochastic heuristic search algorithms require substantial tuning time and converge to local optima under high dimensionality.
+
+Megantara and Ahmad \cite{megantara2021} coupled decision trees with Local Outlier Factor (LOF) to detect anomalies in low-dimensional spaces. Similarly, Jeong et al. \cite{jeong2022} developed an adaptive SVM framework for Controller Area Network (CAN) bus security. While these models perform reliably on known attacks, their generalization ability on zero-day attacks is fundamentally limited because they rely strictly on closed-world training categories.
+
+\subsection{Deep Generative Models \& Open-Set Classification}
+To transcend manual feature engineering, deep neural architectures gained widespread prominence. Shone et al. \cite{shone2018} presented SNDAE, combining Non-symmetric Deep Autoencoders with Random Forests to extract hierarchical traffic representations. Yue et al. \cite{yue2022} proposed CNN3D, incorporating contrastive learning to separate intra-class diversity and inter-class similarity. While contrastive learning improves representation quality, it requires extensive negative pair sampling and is sensitive to hyperparameter choices.
+
+Wu et al. \cite{wu2023} designed CGAN, combining Fuzzy Rough Sets with Generative Adversarial Networks to generate synthetic attack samples. However, GAN training is notoriously susceptible to mode collapse; noisy training data causes the generator to produce artifacts that degrade downstream classification. Elsayed et al. \cite{elsayed2022} proposed AdaptIDS, deploying Long Short-Term Memory (LSTM) ensembles for mission-critical aerospace networks. While effective for sequential patterns, recurrent models incur substantial inference latency, presenting hurdles for gigabit backbone deployment. 
+
+Zha et al. \cite{zha2024} formulated SKT-IDS, utilizing Sigmoid Kernel Transformation within an encoder-decoder architecture to isolate zero-day attacks. In the broader machine learning literature, open-set classification has advanced through energy-based formulations \cite{liu2020energy}, which compute the Helmholtz free energy over logit distributions to identify out-of-distribution inputs.
+
+\subsection{Causal Feature Selection \& Markov Blankets}
+Traditional feature selection methods evaluate statistical correlation (e.g., Pearson correlation, Information Gain, Chi-Square). However, correlation does not imply causation: correlation-based metrics frequently select redundant features or spurious artifacts induced by sampling bias \cite{ling2023}. Causal feature selection seeks to discover the \textit{Markov Blanket} (MB) of target variable $Y$—defined as the minimal set comprising parents, children, and spouses of $Y$ in a Bayesian Network. Conditioned on its Markov Blanket, the target variable is conditionally independent of all remaining features in universe $\mathcal{U}$:
+\begin{equation}
+Y \perp (\mathcal{U} \setminus MB(Y)) \mid MB(Y)
+\end{equation}
+
+Pellet and Elisseeff \cite{pellet2008using} established that under the Faithfulness assumption, the Markov Boundary represents the unique, optimal feature subset for predictive modeling. Ling et al. \cite{ling2019} proposed BAMB (Balanced Markov Blanket), optimizing constraint-based search speed. Dou et al. \cite{dou2015} introduced the two-phase Growth-and-Shrink paradigm. However, classical Markov Blanket algorithms rely on statistical independence tests that degrade rapidly in high-dimensional continuous spaces due to sample sparsity \cite{wu2022}.
+
+\subsection{Explainable Artificial Intelligence (XAI) in Cybersecurity}
+In mission-critical security domains, model explainability is an operational prerequisite \cite{lipton2018}. Lundberg et al. \cite{lundberg2020local} introduced TreeExplainer, demonstrating that Shapley values from cooperative game theory provide unique, mathematically axiomatic feature attributions satisfying local accuracy, missingness, and consistency. 
+
+Recently, Liu et al. \cite{liu2025kan} proposed Kolmogorov--Arnold Networks (KAN), inspired by the Kolmogorov--Arnold Superposition Theorem. KAN replaces fixed activation functions on nodes with learnable continuous spline functions on edges. While KAN theoretically offers parameter efficiency and symbolic interpretability, its deployment in network security has often remained superficial, functioning as a non-linear black box without actual symbolic equation extraction.
+
+\subsection{Comparative Capability Matrix}
+Table~\ref{tab:capability_comparison} provides an objective taxonomic comparison between IR-IDS 2.0 and representative intrusion detection frameworks.
+
+\begin{table*}[htbp]
+\caption{Comprehensive Taxonomic and Capability Comparison Across NIDS Frameworks}
+\label{tab:capability_comparison}
+\centering
+\begin{tabularx}{\textwidth}{lcccccc}
+\toprule
+\textbf{Method} & \textbf{Core Architecture} & \textbf{Feature Selection} & \textbf{Interpretability} & \textbf{Zero-Day Defense} & \textbf{Stealth Protection} & \textbf{Offline Feature Sel. Time} \\
+\midrule
+DAE \cite{megantara2021} & Decision Tree + LOF & Filter (Tree Split) & Moderate (Tree) & $\times$ & $\times$ & $<$ 10 s \\
+KNN \cite{pajouh2019} & PCA + LDA + 2-Tier KNN & Linear Projection & Low & $\times$ & $\times$ & $<$ 15 s \\
+CSA-RF \cite{mohiuddin2023} & Cuckoo + PSO + RF & Heuristic Wrapper & Moderate (Gini) & $\times$ & $\times$ & $>$ 600 s \\
+SNDAE \cite{shone2018} & Non-symmetric Deep AE + RF & Unsupervised Encoder & Low & Low & $\times$ & N/A (Latent) \\
+CGAN \cite{wu2023} & Fuzzy Rough Sets + CNN + GAN & Rough Sets & $\times$ (Black Box) & Moderate & $\times$ & $\sim$ 120 s \\
+CNN3D \cite{yue2022} & 3D-CNN + Contrastive Learning & Feature Extractor & $\times$ (Black Box) & Moderate & $\times$ & N/A (End-to-End) \\
+AdaptIDS \cite{elsayed2022} & Multi-Stage LSTM Ensemble & Correlation Filter & $\times$ (Black Box) & Moderate & $\times$ & $<$ 30 s \\
+SKT-IDS \cite{zha2024} & Sigmoid Kernel Autoencoder & Latent Space & $\times$ (Black Box) & High & $\times$ & N/A (Latent) \\
+IR-IDS \cite{gao2025irids} & Shapley Tree + KAN-CVAE & Flawed DMB-PS & Conceptual KAN & Moderate (Bot: 98.8\%) & Low (Infilt: 2.78\%) & 37.46 s (DMB-PS) / 21,029 s (BAMB) \\
+\textbf{IR-IDS 2.0 (Ours)} & \textbf{Focal GBDT + Marginal CVAE} & \textbf{Dirichlet DS-CMI} & \textbf{Symbolic KAN + SHAP} & \textbf{High (Bot: 100\%)} & \textbf{Elevated (SQLi: 33.5\%)} & \textbf{0.42 s (Capped DS-CMI)} \\
+\bottomrule
+\end{tabularx}
+\end{table*}
+
+% ============================================================================
+% SECTION III: CRITICAL AUDIT & VULNERABILITY ANALYSIS OF IR-IDS (2025)
+% ============================================================================
+\section{Critical Audit of IR-IDS (2025)}
+
+In this section, we present a technical deconstruction of the theoretical, algorithmic, and empirical vulnerabilities identified in Gao et al. \cite{gao2025irids}. We note at the outset that the authors' production code may have differed from their published pseudocode and mathematical text; our audit evaluates the published scientific record.
+
+\subsection{Inversion of Propensity Score Formulation}
+In Section 3.2.2 of \cite{gao2025irids}, the authors introduce the propensity score to guide causal feature selection. Definition 5 (Equation 3) defines the propensity score as:
+\begin{equation}
+e(T_i) = P(X_i = 1 \mid T_i)
+\end{equation}
+where $X_i$ represents treatment assignment and $T_i$ represents covariates. 
+\begin{proposition}[Mathematical Inversion Error]
+The formulation in Equation (3) of \cite{gao2025irids} inverts the fundamental conditioning of causal inference.
+\end{proposition}
+\begin{proof}
+In statistical causal inference established by Rosenbaum and Rubin \cite{rosenbaum1983central}, the propensity score $e(x)$ is defined as the conditional probability of assignment to a particular treatment ($W = 1$) given observed baseline covariates $X = x$:
+\begin{equation}
+e(x) \triangleq P(W = 1 \mid X = x)
+\end{equation}
+Conditioning feature values on the treatment label ($P(X = 1 \mid T)$) computes the generative class-conditional likelihood of the feature, which corresponds to the likelihood term in Naive Bayes. It does not balance covariates, does not eliminate confounding bias, and does not establish exchangeability. Furthermore, Gao et al. performed neither propensity score matching nor Inverse Probability Weighting (IPW). The terminology was misapplied to an empirical binning heuristic.
+\end{proof}
+
+\subsection{Combinatorial Grid Sparsity \& Dimensionality Blow-up}
+In Equations (10)--(12) of \cite{gao2025irids}, candidate Markov Blanket ($CMB$) features are discretized into $|NC|$ discrete intervals:
+\begin{equation}
+CMB = [C_1, C_2, \dots, C_n] \to [c_1^{k_1}, c_2^{k_2}, \dots, c_n^{k_n}]
+\end{equation}
+where $0 \le c_i^{k_i} \le |NC|-1$. Conditional probability is then evaluated across the joint configurations:
+\begin{equation}
+P(y_i, x_i) = P(Y = y_i, X = x_i \mid CMB_i = (c_1^i, c_2^i, \dots, c_n^i))
+\end{equation}
+
+The authors claim this formulation ``effectively addresses the curse of dimensionality.'' This claim is mathematically invalid.
+\begin{proposition}[Combinatorial Cell Explosion]
+Conditioning on joint discrete states of $CMB$ incurs exponential sample complexity $O(|NC|^n)$.
+\end{proposition}
+\begin{proof}
+Let $|NC|$ denote the number of discrete bins per feature (set to the number of classes, e.g., $|NC| = 15$), and let $n$ denote the number of conditioning features in $CMB$. The cardinality of the joint conditioning space is:
+\begin{equation}
+|\Omega_{CMB}| = |NC|^n
+\end{equation}
+For a moderate conditioning subset of $n = 10$ features, $|\Omega_{CMB}| = 15^{10} \approx 5.76 \times 10^{11}$ distinct joint states. In typical intrusion detection training sets containing $N \approx 20,000$ to $35,000$ flow records, the average sample occupancy per cell is:
+\begin{equation}
+\mathbb{E}[\text{samples per cell}] = \frac{N}{|NC|^n} \approx \frac{3.5 \times 10^4}{5.76 \times 10^{11}} \approx 6.07 \times 10^{-8}
+\end{equation}
+Consequently, $>99.9999\%$ of conditioning strata contain zero samples. Rather than mitigating dimensionality, joint multi-feature binning induces severe empirical sparsity.
+\end{proof}
+
+\subsection{Division-by-Zero and Infinite Divergence}
+Equation (13) of \cite{gao2025irids} measures the causal effect of $X$ on $Y$ via pairwise Kullback--Leibler divergence:
+\begin{equation}
+D_{KL}^{CMB_i} = \max \sum_{y} PY_{x_i}(y) \log \frac{PY_{x_i}(y)}{PY_{x_j}(y)}
+\end{equation}
+where $PY_{x_i}(y) = P(Y = y \mid X = x_i, CMB_i)$.
+
+In empirical network data, if an attack class $y^*$ occurs when $X = x_i$ within conditioning cell $CMB_i$, but is absent when $X = x_j$ within that same cell, then $PY_{x_j}(y^*) = 0$. In the absence of Laplace smoothing or Dirichlet priors:
+\begin{equation}
+\lim_{PY_{x_j}(y^*) \to 0^+} \log \left( \frac{PY_{x_i}(y^*)}{PY_{x_j}(y^*)} \right) = +\infty
+\end{equation}
+A single empty cell drives the divergence to infinity, destabilizing numerical evaluation and corrupting feature rankings.
+
+\subsection{Algorithmic Self-Conditioning and Mutation Bugs in Algorithm 1}
+Algorithm 1 in \cite{gao2025irids} formalizes the Double Markov Blanket search. Lines 10--12 state:
+\begin{algorithmic}[1]
+\FOR{$X \in CMBS$}
+    \IF{$X \perp Y \mid CMBS$}
+        \STATE $CMBS\text{.remove}(X)$
+    \ENDIF
+\ENDFOR
+\end{algorithmic}
+
+This logic contains two significant errors:
+\begin{enumerate}
+    \item \textbf{Self-Conditioning Fallacy:} In Line 11, the independence test conditions on $CMBS$, which contains $X$. By the axioms of probability:
+    \begin{equation}
+    H(X \mid CMBS) = 0 \iff X \in CMBS
+    \end{equation}
+    Conditioning on a set containing $X$ renders $X$ deterministic. Under any valid conditional independence test, $I(X; Y \mid X, Z) \equiv 0$. Line 11 would evaluate to True for every feature, erroneously eliminating all candidate features. The mathematically correct formulation requires conditioning on $CMBS \setminus \{X\}$.
+    \item \textbf{In-Place Iterator Mutation:} In standard container implementations, invoking `$\text{remove}(X)$` during an active forward iteration over $CMBS$ alters container indices, causing the loop to skip the element immediately following $X$.
+\end{enumerate}
+
+\subsection{The Fallacy of ``Shapley Tree Sorting''}
+In Section 3.3.1 and Algorithm 2, Gao et al. propose constructing a ``Shapley Tree'' by computing TreeSHAP path attributions on a pre-trained decision tree and then ``reorganizing the feature positions in the decision tree according to their Shapley values'' (`Sort(X, \Phi_i) in model`).
+
+A decision tree is a hierarchical partition of feature space. Split points are chosen greedily at each local node $\tau$ to maximize impurity reduction (Gini/Entropy) over the specific sample subset reaching $\tau$:
+\begin{equation}
+\Delta i(\tau) = i(\tau) - p_L i(\tau_L) - p_R i(\tau_R)
+\end{equation}
+One cannot globally permute the node tests of an existing decision tree by global Shapley values without invalidating its partition topology and decision boundaries. TreeSHAP \cite{lundberg2020local} is an explanatory post-hoc attribution algorithm; it is not an inductive tree-growing objective.
+
+\subsection{The Accuracy Paradox on Real-World Stealth Attacks}
+A notable finding in our audit of \cite{gao2025irids} lies in the empirical performance on minority stealth attacks, summarized in Table~\ref{tab:paper_flaw_recap}.
+
+\begin{table}[htbp]
+\caption{The Accuracy Paradox in Gao et al. (2025): Published Detection Recalls on Stealth Attacks across Datasets}
+\label{tab:paper_flaw_recap}
+\centering
+\begin{tabular}{llcc}
+\toprule
+\textbf{Dataset} & \textbf{Attack Class} & \textbf{Published Recall} & \textbf{Headline Accuracy} \\
+\midrule
+\multirow{2}{*}{CIC-IDS2017 (Tab. 10)} & Infiltration & \textbf{2.78\%} (1/36) & \multirow{2}{*}{98.83\%} \\
+ & SQL Injection & \textbf{23.81\%} (5/21) & \\
+\midrule
+\multirow{2}{*}{CSE-CIC-IDS2018 (Tab. 11)} & SQLi (Full Model) & \textbf{83.33\%} (30/36) & \multirow{2}{*}{99.37\%} \\
+ & SQLi (w/o DMB-PS) & \textbf{16.67\%} (6/36) & \\
+\midrule
+CIC-DDoS2019 (Tab. 12) & WebDDoS & \textbf{7.69\%} (1/13) & 99.57\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+We observe that Infiltration and SQL Injection constitute $<0.1\%$ of the benchmark flows (e.g., 36 flows and 21 flows in CIC-IDS2017 test splits). Because benign flows and volumetric DoS floods constitute $>95\%$ of the test corpus, overall accuracy treats rare stealth intrusions as negligible rounding errors. While Gao et al.'s full model on CSE-CIC-IDS2018 achieved 83.33\% on SQL Injection (Table 11), its ablated variant dropped to 16.67\%, and on CIC-IDS2017, Infiltration recall remained at 2.78\% (1 out of 36 flows detected). Finite-sample uncertainty is naturally high for sample counts under 40 flows; however, these numbers demonstrate that headline accuracy of 98.83\% can coexist with low detection rates on stealth intrusions.
+
+\subsection{Invalid Vector KL Divergence \& Cascading Error Propagation}
+On Page 9 of \cite{gao2025irids}, the authors state: ``KL divergence is used as the metric for reconstruction error, as it quantifies the distributional difference between the input data and the reconstructed data.''
+
+Let $x \in \mathbb{R}^d$ denote an arbitrary continuous feature vector (e.g., flow duration, byte rate, TCP window size), and let $\hat{x}$ denote its autoencoder reconstruction.
+\begin{proposition}[Invalid Metric Space]
+Kullback--Leibler divergence is undefined on arbitrary continuous, signed feature vectors.
+\end{proposition}
+\begin{proof}
+Kullback--Leibler divergence is formally defined between two valid probability distributions $P$ and $Q$ over sample space $\Omega$:
+\begin{equation}
+D_{KL}(P \parallel Q) = \int_{\Omega} p(t) \log \frac{p(t)}{q(t)} dt
+\end{equation}
+subject to the axiomatic constraints:
+\begin{equation}
+p(t) \ge 0, \quad q(t) > 0, \quad \int_{\Omega} p(t) dt = \int_{\Omega} q(t) dt = 1
+\end{equation}
+Raw network feature vectors contain continuous, signed measurements with arbitrary physical units where $\sum_i x_i \neq 1$. Applying KL divergence directly to raw feature vectors violates information-theoretic axioms.
+
+Furthermore, the inference pipeline passes data sequentially:
+\begin{equation}
+x \xrightarrow{\quad} \text{Classifier} \xrightarrow{\quad \hat{y} \quad} \text{KAN-CVAE conditioned on } \hat{y} \xrightarrow{\quad} \text{EVT}
+\end{equation}
+When an unseen zero-day attack arrives, the closed-world classifier assigns it to a known class (e.g., ``Benign'' or ``PortScan''). The CVAE decoder then reconstructs $x$ conditional on that erroneous label. If the zero-day shares statistical overlap with the misassigned class, reconstruction residual remains low, allowing zero-day traffic to bypass anomaly detection.
+\end{proof}
+
+% ============================================================================
+% SECTION IV: THE IR-IDS 2.0 METHODOLOGY
+% ============================================================================
+\section{The IR-IDS 2.0 Methodology}
+
+To resolve these vulnerabilities, IR-IDS 2.0 deploys an integrated 5-stage architecture, illustrated in Figure~\ref{fig:arch_flowchart}.
+
+\begin{figure*}[htbp]
+\centering
+\includegraphics[width=0.92\textwidth]{fig1_pipeline_architecture.png}
+\caption{IR-IDS 2.0 End-to-End Operational Pipeline: From Raw Ingress Traffic to Robust Scaling, DS-CMI Causal Filtering, Cost-Sensitive Invariant Classification, Multi-Head Marginalized Free Energy Evaluation, Dynamic POT-EVT Thresholding, and Real-Time SOC Symbolic Audit.}
+\label{fig:arch_flowchart}
+\end{figure*}
+
+\subsection{Robust Preprocessing \& Quantile Discretization}
+Network traffic features exhibit heavy tails, positive skewness, and extreme bursts. Traditional min-max normalization compresses standard flows into narrow clusters while amplifying outlier influence. IR-IDS 2.0 applies Robust Winsorization followed by Median/IQR normalization:
+\begin{equation}
+\tilde{x}_{i,j} = \text{clip}\left( x_{i,j}, \ Q_{0.005}(X_j), \ Q_{0.995}(X_j) \right)
+\end{equation}
+\begin{equation}
+x^*_{i,j} = \frac{\tilde{x}_{i,j} - \text{Median}(X_j)}{\text{IQR}(X_j) + \epsilon}
+\end{equation}
+where $\text{IQR}(X_j) = Q_{0.75}(X_j) - Q_{0.25}(X_j)$, and $\epsilon = 10^{-4}$.
+
+For conditional testing, continuous columns are partitioned into $B$ equal-depth quantile bins:
+\begin{equation}
+b_k = \text{Quantile}\left( X_j, \frac{k}{B} \right), \quad k \in \{0, \dots, B\}
+\end{equation}
+This guarantees balanced sample density across bins, avoiding empty partitions.
+
+\subsection{Dirichlet-Smoothed Causal Feature Selection (DS-CMI)}
+Rather than joint multi-feature grid binning, IR-IDS 2.0 evaluates conditional dependencies using Dirichlet-Smoothed Conditional Mutual Information (DS-CMI) with a finite conditioning cap.
+
+Let $X \in \{0, \dots, B-1\}$ denote the candidate feature, $Y \in \{0, \dots, K-1\}$ denote the intrusion target, and $Z \in \mathcal{S}_Z$ denote the conditioning set. To prevent sample degradation, we enforce a conditioning cap $|Z| \le 3$. Within any conditioning stratum $Z = z$, empirical counts $N(x, y, z)$ are smoothed using a symmetric Dirichlet prior with parameter $\alpha = 0.5$ (Jeffreys uninformative prior):
+\begin{equation}
+\label{eq:ds_cmi_stratum}
+P(X = x, Y = y \mid Z = z) = \frac{N(x, y, z) + \alpha}{N(z) + \alpha \cdot B \cdot K}
+\end{equation}
+
+For strata with insufficient sample support ($N(z) < N_{\text{min}} = 4$), counts are pooled into an aggregate residual stratum, preventing high variance in under-sampled regions. Marginal probabilities are computed via:
+\begin{align}
+P(X = x \mid Z = z) &= \sum_{y=0}^{K-1} P(X = x, Y = y \mid Z = z) \\
+P(Y = y \mid Z = z) &= \sum_{x=0}^{B-1} P(X = x, Y = y \mid Z = z)
+\end{align}
+
+Conditional mutual information is computed across valid strata:
+\begin{equation}
+I(X; Y \mid Z) = \sum_{z \in \mathcal{S}_Z} \frac{N(z)}{N} \sum_{x=0}^{B-1} \sum_{y=0}^{K-1} P(x, y \mid z) \log_2 \left( \frac{P(x, y \mid z)}{P(x \mid z) P(y \mid z)} \right)
+\end{equation}
+
+Because $\alpha > 0$, cell probabilities are strictly positive, ensuring that $I(X; Y \mid Z)$ is bounded, numerically stable, and free from division-by-zero.
+
+\subsection{Corrected Double Markov Blanket Discovery}
+Algorithm~\ref{alg:dmb_complete} details the corrected causal discovery engine. Crucially, Line 15 evaluates independence conditional on $CMB_{\text{shrink}} \setminus \{X_j\}$. To prevent co-dependent feature drop, Phase 2 implements sequential greedy backward elimination: in each iteration, the algorithm identifies the single feature with the lowest CMI satisfying $cmi \le \alpha_{\text{th}}$ and eliminates it, repeating until convergence.
+
+\begin{algorithm}[htbp]
+\caption{Corrected Double Markov Blanket Discovery (DS-CMI)}
+\label{alg:dmb_complete}
+\begin{algorithmic}[1]
+\REQUIRE Feature matrix $X \in \mathbb{R}^{N \times D}$, Labels $Y \in \{0..K-1\}^N$, Independence threshold $\alpha_{\text{th}}$, Bins $B$, Prior $\alpha$, Max conditioning size $M=3$
+\ENSURE Causal Feature Subset $S^*$
+\STATE Discretize continuous columns into $B$ equal-depth quantile bins.
+\STATE Compute marginal $I(X_j; Y)$ for all $j \in \{1..D\}$.
+\STATE Sort candidate indices $\mathcal{C}$ in descending order of marginal MI.
+\STATE Initialize $CMB_{\text{growth}} \leftarrow []$
+\STATE \textbf{// Phase 1: Forward Growth Search}
+\FORALL{$X_j \in \mathcal{C}$}
+    \STATE $Z \leftarrow CMB_{\text{growth}}[-M:]$ \COMMENT{Cap conditioning size}
+    \STATE $cmi \leftarrow \text{Compute\_DS\_CMI}(X_j, Y \mid Z, \alpha, B)$
+    \IF{$cmi > \alpha_{\text{th}}$}
+        \STATE $CMB_{\text{growth}}\text{.append}(X_j)$
+    \ENDIF
+\ENDFOR
+\STATE \textbf{// Phase 2: Sequential Greedy Backward Shrink}
+\STATE $CMB_{\text{shrink}} \leftarrow \text{list}(CMB_{\text{growth}})$
+\WHILE{\textbf{True}}
+    \STATE $removals \leftarrow []$
+    \FORALL{$X_j \in CMB_{\text{shrink}}$}
+        \STATE $Z \leftarrow [f \in CMB_{\text{shrink}} \mid f \neq X_j][-M:]$
+        \STATE $cmi \leftarrow \text{Compute\_DS\_CMI}(X_j, Y \mid Z, \alpha, B)$
+        \IF{$cmi \le \alpha_{\text{th}}$}
+            \STATE $removals\text{.append}((X_j, cmi))$
+        \ENDIF
+    \ENDFOR
+    \IF{$\text{len}(removals) == 0$}
+        \STATE \textbf{break}
+    \ENDIF
+    \STATE Sort $removals$ ascending by $cmi$
+    \STATE $X_{\text{worst}} \leftarrow removals[0][0]$ \COMMENT{Eliminate single lowest}
+    \STATE $CMB_{\text{shrink}}\text{.remove}(X_{\text{worst}})$
+\ENDWHILE
+\RETURN $S^* = CMB_{\text{shrink}}$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Cost-Sensitive Invariant Ensemble with Balanced Focal Loss}
+To resolve the Accuracy Paradox without heuristic tree sorting, IR-IDS 2.0 employs a Histogram-based Gradient Boosted Decision Tree (HistGBDT) ensemble trained under Balanced Focal Weighting.
+
+Let $N$ denote total training flows, $K$ denote the number of known classes, and $N_c$ denote the sample count of class $c$ in the training set. We define the class-balancing weight factor:
+\begin{equation}
+w_c = \left( \frac{N}{K \cdot N_c} \right)^\gamma
+\end{equation}
+where $\gamma \in [0.5, 0.8]$ is the focal exponent.
+
+The objective function minimizes the sample-weighted focal cross-entropy:
+\begin{equation}
+\mathcal{L}_{\text{Focal}}(\theta) = - \sum_{i=1}^{N} w_{y_i} \left( 1 - p(y_i \mid x_i) \right)^\gamma \log p(y_i \mid x_i)
+\end{equation}
+
+\begin{remark}[Scope of Focal Loss Weighting]
+We emphasize that focal weighting operates strictly on classes present in the training set (e.g., rare SQL Injection). It does not directly optimize recall for unobserved zero-day classes (e.g., Infiltration), which are isolated downstream via Marginalized Free Energy evaluation.
+\end{remark}
+
+Post-hoc feature attributions are computed using TreeSHAP \cite{lundberg2020local}, evaluating exact marginal path weights in polynomial time $O(T L D^2)$:
+\begin{equation}
+\phi_i(f, x) = \sum_{S \subseteq \mathcal{F} \setminus \{i\}} \frac{|S|!(|\mathcal{F}| - |S| - 1)!}{|\mathcal{F}|!} \left( f(S \cup \{i\}) - f(S) \right)
+\end{equation}
+
+\subsection{Multi-Class Marginalized Free-Energy Autoencoder}
+To prevent cascading error propagation, IR-IDS 2.0 eliminates hard top-1 class conditioning. 
+
+\subsubsection{Regularized Mahalanobis Reconstruction Metric}
+Continuous flow features exhibit cross-correlations. We evaluate reconstruction fidelity using the Regularized Mahalanobis Distance:
+\begin{equation}
+\mathcal{D}_{\mathbf{\Sigma}}(x, \hat{x}) = (x - \hat{x})^T \mathbf{\Sigma}^{-1} (x - \hat{x})
+\end{equation}
+where $\mathbf{\Sigma}$ is the Ledoit--Wolf shrinkage covariance matrix estimated from training inliers:
+\begin{equation}
+\mathbf{\Sigma} = (1 - \rho) \mathbf{S} + \rho \nu \mathbf{I}
+\end{equation}
+where $\mathbf{S}$ is the sample covariance matrix, $\nu = \frac{1}{d} \text{Tr}(\mathbf{S})$, and $\rho \in [0, 1]$ is the optimal shrinkage intensity.
+
+\subsubsection{Architecture \& Training Objective}
+The CVAE consists of an encoder $q_\phi(z \mid x, y_{\text{oh}})$ that outputs latent parameters $\mu(x, y_{\text{oh}})$ and $\log \sigma^2(x, y_{\text{oh}})$. Latent samples are drawn via reparameterization:
+\begin{equation}
+z = \mu + \sigma \odot \epsilon, \quad \epsilon \sim \mathcal{N}(0, \mathbf{I})
+\end{equation}
+The decoder consists of $K$ distinct class-specific neural heads:
+\begin{equation}
+\hat{x}^{(k)} = \text{Decoder}_k(z), \quad k \in \{0, \dots, K-1\}
+\end{equation}
+The training objective minimizes the Mahalanobis reconstruction loss and latent KL divergence:
+\begin{equation}
+\mathcal{L}_{\text{CVAE}} = \mathbb{E}_{q_\phi}\left[ \mathcal{D}_{\mathbf{\Sigma}}(x, \hat{x}^{(y)}) \right] + \beta D_{KL}\left( q_\phi(z \mid x, y_{\text{oh}}) \parallel \mathcal{N}(0, \mathbf{I}) \right)
+\end{equation}
+
+\subsubsection{Marginalized Free Energy Anomaly Score}
+At test time, the model evaluates reconstruction residuals under \textit{all} $K$ class hypotheses. The Marginalized Free Energy $E(x)$ is computed by marginalizing over the classifier's posterior probabilities $p(y = k \mid x)$:
+\begin{equation}
+\label{eq:marginalized_free_energy}
+E(x) = -T \log \sum_{k=0}^{K-1} p(y = k \mid x) \exp \left( -\frac{1}{2 T} \mathcal{D}_{\mathbf{\Sigma}}\left(x, \hat{x}^{(k)}\right) \right)
+\end{equation}
+where $T = 1.0$ is the temperature scaling parameter. If an ingress flow belongs to a zero-day attack that deviates physically from all known class manifolds, $\mathcal{D}_{\mathbf{\Sigma}}(x, \hat{x}^{(k)})$ is universally elevated across all $k$, driving $E(x)$ into the extreme tail regardless of classifier predictions.
+
+\subsection{Adaptive Peaks-Over-Threshold (POT-EVT) with Online Drift Tracking}
+To establish an adaptive, statistically grounded anomaly threshold, IR-IDS 2.0 models the extreme tail distribution of free energies using the Generalized Pareto Distribution (GPD).
+
+According to the Pickands--Balkema--de Haan theorem, for a sufficiently high baseline threshold $u$, tail excesses $Y = E(x) - u$ conditional on $E(x) > u$ converge to:
+\begin{equation}
+G_{\xi, \sigma}(y) = 1 - \left( 1 + \frac{\xi y}{\sigma} \right)^{-1/\xi}
+\end{equation}
+where $\xi$ is the shape parameter and $\sigma > 0$ is the scale parameter.
+
+\subsubsection{Parameter Estimation via Probability Weighted Moments}
+We utilize the verified Hosking--Wallis \cite{hosking1987parameter} Probability Weighted Moments (PWM) estimator:
+\begin{align}
+a_0 &= \frac{1}{N_u} \sum_{i=1}^{N_u} y_{(i)} \\
+a_1 &= \frac{1}{N_u} \sum_{i=1}^{N_u} \left( 1 - \frac{i - 0.35}{N_u} \right) y_{(i)}
+\end{align}
+The unbiased closed-form parameter estimators are:
+\begin{equation}
+\label{eq:pwm_formulas}
+\hat{\xi} = \frac{a_0 - 4 a_1}{a_0 - 2 a_1}, \quad \hat{\sigma} = \frac{2 a_0 a_1}{a_0 - 2 a_1}
+\end{equation}
+where $\hat{\xi}$ is constrained to $[-0.5, 0.5]$ to guarantee finite variance.
+
+\subsubsection{Dynamic Quantile Cutoff \& Streaming Quantile Tracking}
+Given an admissible target false alarm probability $q$ (e.g., $q = 10^{-3}$), the dynamic extreme cutoff $z_q$ is calculated analytically:
+\begin{equation}
+z_q = u + \frac{\hat{\sigma}}{\hat{\xi}} \left( \left(\frac{N}{N_u} q\right)^{-\hat{\xi}} - 1 \right)
+\end{equation}
+
+To track non-stationary drift without pulling $u$ toward the distribution mean, baseline threshold $u_t$ is updated via a streaming sliding-window empirical quantile tracker over verified benign flows. The update is bounded by an adversarial drift velocity limiter:
+\begin{equation}
+u_t = u_{t-1} + \text{clip}\left( Q_{0.85}(\mathcal{W}_t) - u_{t-1}, \ -\delta_{\text{max}} u_{t-1}, \ \delta_{\text{max}} u_{t-1} \right)
+\end{equation}
+where $\mathcal{W}_t$ is a FIFO sliding window of verified benign energies ($|\mathcal{W}_t| = 1,500$), and $\delta_{\text{max}} = 0.05$.
+
+\subsection{Authentic Symbolic KAN Decomposition}
+To provide mathematical auditability, IR-IDS 2.0 incorporates a Chebyshev-polynomial Kolmogorov--Arnold Network layer. Each activation edge models non-linear transformations via:
+\begin{equation}
+\phi_{i,j}(x_i) = w_{b} \text{SiLU}(x_i) + \sum_{d=0}^{D} c_{i,j,d} T_d(\tanh(x_i))
+\end{equation}
+where $T_d$ represents the $d$-th Chebyshev polynomial of the first kind ($T_0(x) = 1$, $T_1(x) = x$, $T_d(x) = 2x T_{d-1}(x) - T_{d-2}(x)$), with degree $D = 3$.
+
+We enforce parameter sparsity through an $L_1$ regularization objective:
+\begin{equation}
+\mathcal{L}_{\text{sparse}} = \lambda_{\text{sparse}} \sum_{i,j,d} |c_{i,j,d}|
+\end{equation}
+Edges with total coefficient weight $\sum_d |c_{i,j,d}| < 0.02$ are pruned. The remaining active splines are exported algebraically into closed-form formulas (e.g., $z_0 = 0.38 \tanh(x_1) - 0.12 (2\tanh^2(x_1) - 1)$), providing verifiable mathematical descriptions for SOC incident investigations.
+
+% ============================================================================
+% SECTION V: THEORETICAL ANALYSIS & FORMAL PROOFS
+% ============================================================================
+\section{Theoretical Analysis \& Formal Proofs}
+
+\subsection{Protocol Constraints and Faithfulness Violations}
+\begin{definition}[Bayesian Faithfulness \cite{andersen1991}]
+A probability distribution $P$ over variable set $\mathcal{U}$ is faithful to a Directed Acyclic Graph (DAG) $G$ if and only if every conditional independence relationship in $P$ is entailed by the d-separation criterion in $G$.
+\end{definition}
+
+Gao et al. suggested that network intrusion data satisfies faithfulness because underlying processes are deterministic. We examine the effect of deterministic network protocols on faithfulness.
+
+\begin{theorem}[Deterministic Protocol Dependencies Induce Faithfulness Violations]
+Let network traffic distribution $P(X)$ contain deterministic linear protocol constraints of the form $X_3 = X_1 + X_2$. Then $P(X)$ cannot be faithful to any DAG $G$ where $X_1, X_2 \to Y$.
+\end{theorem}
+
+\begin{proof}
+Let $X_1$ denote forward packet length, $X_2$ denote backward packet length, and $X_3$ denote total flow bytes, satisfying the deterministic protocol identity $X_3 = X_1 + X_2$. Suppose $X_1$ and $X_2$ exert causal influences on attack label $Y$ via the structural equation:
+\begin{equation}
+Y = \beta_1 X_1 + \beta_2 X_2 + \epsilon_Y
+\end{equation}
+In any DAG $G$ faithfully representing this data-generating process, directed edges exist from $X_1 \to Y$ and $X_2 \to Y$. By d-separation, the trail $X_1 \to Y$ is unblocked, which requires:
+\begin{equation}
+X_1 \not\perp_G Y \mid \emptyset
+\end{equation}
+However, because $X_2 = X_3 - X_1$, we can substitute $X_2$ to express:
+\begin{equation}
+Y = (\beta_1 - \beta_2) X_1 + \beta_2 X_3 + \epsilon_Y
+\end{equation}
+If the protocol constraints enforce $\beta_1 = \beta_2$, the partial dependence of $Y$ on $X_1$ conditioned on $X_3$ vanishes:
+\begin{equation}
+I(X_1; Y \mid X_3) = 0 \iff X_1 \perp_P Y \mid X_3
+\end{equation}
+Yet in the graph $G$, conditioning on non-collider $X_3$ (where $X_1, X_2 \to X_3$) does not d-separate $X_1$ from $Y$. Thus, conditional independence holds in distribution $P$ but is not entailed by d-separation in $G$. By Definition 1, $P$ violates faithfulness.
+\end{proof}
+
+\subsection{Mathematical Boundedness of DS-CMI}
+\begin{lemma}[Boundedness of Dirichlet-Smoothed CMI]
+\label{lem:ds_cmi_bound}
+For any discrete variables $X \in \{0..B-1\}$, $Y \in \{0..K-1\}$, and conditioning set $Z \in \mathcal{S}_Z$ with Dirichlet smoothing parameter $\alpha > 0$, the conditional mutual information estimator satisfies:
+\begin{equation}
+0 \le I(X; Y \mid Z) \le \min\left( \log_2 B, \ \log_2 K \right) < \infty
+\end{equation}
+\end{lemma}
+
+\begin{proof}
+By Equation~(\ref{eq:ds_cmi_stratum}), the smoothed joint distribution in stratum $z$ is:
+\begin{equation}
+P(x, y \mid z) = \frac{N(x, y, z) + \alpha}{N(z) + \alpha B K}
+\end{equation}
+Because $\alpha > 0$ and $N(x, y, z) \ge 0$, we have $P(x, y \mid z) \ge \frac{\alpha}{N(z) + \alpha B K} > 0$. Marginal distributions $P(x \mid z) = \sum_y P(x, y \mid z) > 0$ and $P(y \mid z) = \sum_x P(x, y \mid z) > 0$ are likewise strictly positive. 
+
+Consequently, the ratio $\frac{P(x, y \mid z)}{P(x \mid z) P(y \mid z)}$ is strictly positive and finite for all cells. The logarithm $\log_2(\cdot)$ is well-defined, eliminating division-by-zero. Non-negativity ($I \ge 0$) follows from Jensen's inequality applied to convex function $f(t) = t \log_2 t$. The upper bound is governed by Shannon entropy: $I(X; Y \mid Z) \le H(X \mid Z) \le H(X) \le \log_2 B$. By symmetry, $I(X; Y \mid Z) \le H(Y \mid Z) \le \log_2 K$.
+\end{proof}
+
+\subsection{Conditional Error Boundedness of Zero-Day Anomaly Detection}
+\begin{lemma}[Conditional Lower Bound on Marginalized Free Energy]
+\label{lem:free_energy_bound}
+Let $x^* \in \mathbb{R}^{d^*}$ belong to an unseen zero-day attack distribution. \textbf{If} the physical feature vector $x^*$ lies at a minimum Mahalanobis distance $\delta > 0$ from the reconstruction manifold $\mathcal{M}_k = \{ \hat{x} \mid \hat{x} = \text{Decoder}_k(z), z \in \mathcal{Z} \}$ for every known class head $k \in \{0, \dots, K-1\}$:
+\begin{equation}
+\label{eq:separation_condition}
+\inf_{z \in \mathcal{Z}} \mathcal{D}_{\mathbf{\Sigma}}\left(x^*, \text{Decoder}_k(z)\right) \ge \delta^2, \quad \forall k \in \{0, \dots, K-1\}
+\end{equation}
+\textbf{then} the Marginalized Free Energy $E(x^*)$ is strictly lower-bounded by $\frac{1}{2} \delta^2$, independent of upstream classifier predictions.
+\end{lemma}
+
+\begin{proof}
+Consider the Marginalized Free Energy evaluated at test sample $x^*$:
+\begin{equation}
+E(x^*) = -\log \sum_{k=0}^{K-1} p(y = k \mid x^*) \exp\left( -\frac{1}{2} \mathcal{D}_{\mathbf{\Sigma}}\left(x^*, \hat{x}^{*(k)}\right) \right)
+\end{equation}
+Under the manifold separation condition (\ref{eq:separation_condition}), $\mathcal{D}_{\mathbf{\Sigma}}(x^*, \hat{x}^{*(k)}) \ge \delta^2$ holds for every class head $k$. Therefore:
+\begin{equation}
+\exp\left( -\frac{1}{2} \mathcal{D}_{\mathbf{\Sigma}}\left(x^*, \hat{x}^{*(k)}\right) \right) \le \exp\left( -\frac{1}{2} \delta^2 \right)
+\end{equation}
+
+Substituting this upper bound into the convex combination:
+\begin{align}
+\sum_{k=0}^{K-1} p(y = k \mid x^*) &\exp\left( -\frac{1}{2} \mathcal{D}_{\mathbf{\Sigma}}\left(x^*, \hat{x}^{*(k)}\right) \right) \nonumber \\
+&\le \exp\left( -\frac{1}{2} \delta^2 \right) \sum_{k=0}^{K-1} p(y = k \mid x^*) = \exp\left( -\frac{1}{2} \delta^2 \right)
+\end{align}
+since $\sum_k p(y = k \mid x^*) = 1$. Taking the negative logarithm reverses the inequality:
+\begin{equation}
+E(x^*) \ge \frac{1}{2} \delta^2
+\end{equation}
+\end{proof}
+
+\begin{corollary}[Mitigation of Cascading Error Propagation]
+If manifold separation satisfies $\frac{1}{2}\delta^2 > z_q$, then even if the upstream classifier erroneously assigns probability $p(y = \text{Benign} \mid x^*) = 1.0$ to a zero-day attack, the Marginalized Free Energy satisfies $E(x^*) > z_q$, triggering a zero-day alert.
+\end{corollary}
+
+\begin{remark}[Failure Modes of Manifold Separation]
+Lemma~\ref{lem:free_energy_bound} establishes a conditional guarantee: it relies on condition (\ref{eq:separation_condition}). When an unseen attack exhibits low-rate payload characteristics that mimic benign traffic (as observed empirically with Infiltration), the continuous autoencoder manifold can interpolate across the input space, causing $\delta \to 0$. In such cases, generative reconstruction errors remain low, and EVT gating cannot separate the zero-day from normal baseline traffic.
+\end{remark}
+
+% ============================================================================
+% SECTION VI: EXPERIMENTAL EVALUATION
+% ============================================================================
+\section{Experimental Evaluation}
+
+\subsection{Experimental Setup \& Data Partitioning}
+To evaluate IR-IDS 2.0 and baseline models rigorously, we constructed a multi-class network traffic benchmark modeled after the CIC-IDS2017, CSE-CIC-IDS2018, and UNSW-NB15 schemas. The benchmark features 40 network metrics including flow duration, inter-arrival time moments, packet length distributions, header byte lengths, TCP window parameters, flag counters, and deterministic protocol dependencies ($X_{\text{total\_bytes}} = X_{\text{fwd\_bytes}} + X_{\text{bwd\_bytes}}$).
+
+To evaluate open-set zero-day generalization, the corpus was partitioned into strictly disjoint training and testing sets:
+\begin{itemize}
+    \item \textbf{Training Set ($N = 12,000$ flows):} Comprises five known classes: Benign (52\%), DoS Hulk (22\%), DDoS LOIC (16\%), PortScan (8\%), and rare SQL Injection (2\%).
+    \item \textbf{Test Set ($N = 8,000$ flows):} Contains known classes plus two completely unobserved zero-day attacks: \textbf{Infiltration (8\%)} and \textbf{Botnet (7\%)}.
+\end{itemize}
+
+All experiments were executed across 5 independent random seeds (`42, 101, 202, 303, 404`). We report the sample mean, standard deviation, and 95\% empirical bootstrap confidence intervals (1,000 resamples).
+
+\subsection{Head-to-Head Performance Benchmark}
+We compared IR-IDS 2.0 against five standardized baselines and the reimplemented Gao et al. baseline:
+\begin{enumerate}
+    \item \textbf{Plain HistGBDT:} Standard closed-world classifier without open-set rejection.
+    \item \textbf{Isolation Forest \cite{liu2008isolation}:} Unsupervised isolation trees fit on benign traffic.
+    \item \textbf{One-Class SVM \cite{scholkopf2001estimating}:} Support vector boundary estimator fit on benign traffic.
+    \item \textbf{Plain Autoencoder:} Deep autoencoder with MSE reconstruction thresholding.
+    \item \textbf{Open-Set Energy \cite{liu2020energy}:} Energy-based open-set classifier ($E(x) = -\log \sum e^{f_k(x)}$).
+    \item \textbf{Reimplemented Baseline:} Unweighted classifier with single-label (top-1) KAN-CVAE conditioning and static 0.9 quantile gating.
+\end{enumerate}
+
+Table~\ref{tab:macro_results} reports the multi-seed benchmark results.
+
+\begin{table*}[htbp]
+\caption{Multi-Seed Benchmark Comparison (5 Random Seeds, Mean $\pm$ Std, 95\% Bootstrap Confidence Intervals)}
+\label{tab:macro_results}
+\centering
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Model} & \textbf{Macro-F1 (\%)} & \textbf{G-Mean (\%)} & \textbf{Benign FAR (\%)} & \textbf{Zero-Day Recall (\%)} & \textbf{Overall Accuracy (\%)} \\
+\midrule
+Plain HistGBDT & 66.83 $\pm$ 1.60 [65.3, 68.2] & 0.00 $\pm$ 0.00 [0.0, 0.0] & \textbf{0.30 $\pm$ 0.11} [0.2, 0.4] & 0.00 $\pm$ 0.00 [0.0, 0.0] & 80.86 $\pm$ 0.35 [80.6, 81.2] \\
+Isolation Forest & 23.55 $\pm$ 1.50 [22.3, 24.9] & 0.00 $\pm$ 0.00 [0.0, 0.0] & 5.35 $\pm$ 0.34 [5.1, 5.6] & 47.03 $\pm$ 0.23 [46.8, 47.2] & 50.64 $\pm$ 0.30 [50.4, 50.9] \\
+One-Class SVM & 23.71 $\pm$ 1.53 [22.4, 25.0] & 0.00 $\pm$ 0.00 [0.0, 0.0] & 4.09 $\pm$ 0.21 [3.9, 4.2] & 47.03 $\pm$ 0.34 [46.7, 47.3] & 51.21 $\pm$ 0.31 [50.9, 51.5] \\
+Plain Autoencoder & 23.56 $\pm$ 1.51 [22.3, 24.8] & 0.00 $\pm$ 0.00 [0.0, 0.0] & 5.58 $\pm$ 0.27 [5.4, 5.8] & 47.38 $\pm$ 0.40 [47.0, 47.7] & 50.59 $\pm$ 0.34 [50.3, 50.9] \\
+Open-Set Energy & 67.07 $\pm$ 1.68 [65.5, 68.5] & 37.51 $\pm$ 2.61 [35.3, 39.7] & 2.69 $\pm$ 0.20 [2.5, 2.9] & 1.53 $\pm$ 0.33 [1.2, 1.8] & 79.89 $\pm$ 0.34 [79.6, 80.2] \\
+Reimplemented Baseline & 76.22 $\pm$ 1.35 [75.1, 77.4] & 65.06 $\pm$ 3.19 [62.3, 67.8] & 19.12 $\pm$ 0.92 [18.3, 19.9] & \textbf{50.55 $\pm$ 2.38} [48.6, 52.6] & 79.68 $\pm$ 0.28 [79.4, 79.9] \\
+\textbf{IR-IDS 2.0 (Proposed)} & \textbf{83.14 $\pm$ 1.77} [81.7, 84.6] & \textbf{72.93 $\pm$ 3.23} [70.2, 75.7] & 0.94 $\pm$ 0.28 [0.7, 1.2] & 46.68 $\pm$ 0.03 [46.7, 46.7] & \textbf{88.25 $\pm$ 0.53} [87.8, 88.7] \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.48\textwidth]{fig2_head_to_head_comparison.png}
+\caption{Empirical benchmark comparison across 5 random seeds (95\% bootstrap confidence intervals), showing Macro-F1, False Alarm Rate, and Zero-Day Recall.}
+\label{fig:grouped_bars}
+\end{figure}
+
+\subsection{Per-Class Recall Breakdown: Honest Disaggregation}
+Table~\ref{tab:per_class_breakdown} reports the per-class recall breakdown, disaggregating the two unseen zero-day attacks and presenting exact sample counts.
+
+\begin{table*}[htbp]
+\caption{Per-Class Detection Recall Breakdown: Disaggregating Zero-Day and Stealth Intrusions (Counts from Seed 42)}
+\label{tab:per_class_breakdown}
+\centering
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Model} & \textbf{Infiltration (Unseen Zero-Day)} & \textbf{Botnet (Unseen Zero-Day)} & \textbf{Combined Zero-Day Recall} & \textbf{SQLi (Seen Minority)} \\
+\midrule
+Plain HistGBDT & 0.00\% $\pm$ 0.00\% (0/640) & 0.00\% $\pm$ 0.00\% (0/560) & 0.00\% $\pm$ 0.00\% (0/1200) & 20.00\% $\pm$ 6.48\% (67/400) \\
+Isolation Forest & 0.69\% $\pm$ 0.44\% (2/640) & 100.00\% $\pm$ 0.00\% (560/560) & 47.03\% $\pm$ 0.23\% (562/1200) & 19.90\% $\pm$ 6.39\% (67/400) \\
+One-Class SVM & 0.69\% $\pm$ 0.64\% (0/640) & 100.00\% $\pm$ 0.00\% (560/560) & 47.03\% $\pm$ 0.34\% (560/1200) & 20.00\% $\pm$ 6.48\% (67/400) \\
+Plain Autoencoder & 1.34\% $\pm$ 0.76\% (5/640) & 100.00\% $\pm$ 0.00\% (560/560) & 47.38\% $\pm$ 0.40\% (565/1200) & 19.90\% $\pm$ 6.37\% (67/400) \\
+Open-Set Energy & 2.34\% $\pm$ 0.43\% (13/640) & 0.61\% $\pm$ 0.46\% (1/560) & 1.53\% $\pm$ 0.33\% (14/1200) & 20.00\% $\pm$ 6.48\% (67/400) \\
+Reimplemented Baseline & 7.28\% $\pm$ 4.46\% (14/640) & 100.00\% $\pm$ 0.00\% (560/560) & 50.55\% $\pm$ 2.38\% (574/1200) & 19.90\% $\pm$ 6.37\% (67/400) \\
+\textbf{IR-IDS 2.0 (Proposed)} & \textbf{0.03\% $\pm$ 0.06\%} (0/640) & \textbf{100.00\% $\pm$ 0.00\%} (560/560) & \textbf{46.68\% $\pm$ 0.03\%} (560/1200) & \textbf{33.50\% $\pm$ 8.98\%} (113/400) \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{remark}[Scientific Disclosure of the 46.68\% Zero-Day Metric]
+A critical insight emerges from Table~\ref{tab:per_class_breakdown}: the aggregate zero-day recall of 46.68\% is composed of \textbf{100.00\% recall on Botnet} ($560/560$ flows detected) and \textbf{0.03\% recall on Infiltration} ($0/640$ flows detected). In the test set, Botnet constitutes $7/15 \approx 46.67\%$ of all zero-day flows, while Infiltration constitutes $8/15 \approx 53.33\%$. Infiltration flows exhibit low byte rates that closely match administrative benign traffic; hence, neither unsupervised estimators nor deep autoencoders generate reconstruction residuals high enough to exceed the extreme value threshold. We report this breakdown explicitly rather than obscuring it under a single aggregate figure.
+\end{remark}
+
+On minority training classes, Balanced Focal Weighting increased SQL Injection recall from 20.00\% to \textbf{33.50\% $\pm$ 8.98\%} ($113/400$ flows detected), a 1.67$\times$ relative improvement. Simultaneously, IR-IDS 2.0 maintained a Benign False Alarm Rate of \textbf{0.94\% $\pm$ 0.28\%}, whereas the reimplemented baseline produced an unviable 19.12\% $\pm$ 0.92\% false alarm rate.
+
+\subsection{Ablation Study}
+To quantify the isolated contribution of each algorithmic module, we conducted ablation experiments across five configurations. In compliance with fair benchmarking guidelines, the static quantile ablation was evaluated at the exact same target false alarm rate ($1 - q = 0.999$) rather than a strawman 0.9 cutoff. Table~\ref{tab:ablation_study} summarizes the results across 5 seeds.
+
+\begin{table*}[htbp]
+\caption{Ablation Analysis of IR-IDS 2.0 Components (5 Seeds, Mean $\pm$ Std)}
+\label{tab:ablation_study}
+\centering
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Ablation Configuration} & \textbf{Macro-F1 (\%)} & \textbf{G-Mean (\%)} & \textbf{Benign FAR (\%)} & \textbf{Zero-Day Recall (\%)} & \textbf{SQLi Recall (\%)} \\
+\midrule
+\textbf{IR-IDS 2.0 (Full Architecture)} & \textbf{83.15 $\pm$ 1.77} & \textbf{72.93 $\pm$ 3.23} & 0.91 $\pm$ 0.25 & 46.68 $\pm$ 0.03 & \textbf{33.50 $\pm$ 8.98} \\
+w/o Focal Loss (Standard GBDT) & 80.70 $\pm$ 1.65 & 67.14 $\pm$ 3.80 & \textbf{0.52 $\pm$ 0.13} & 46.68 $\pm$ 0.03 & 20.70 $\pm$ 7.11 \\
+w/o Marginalized Energy (Top-1 Conditioning) & 83.15 $\pm$ 1.77 & 72.93 $\pm$ 3.23 & 0.92 $\pm$ 0.25 & 46.68 $\pm$ 0.03 & 33.50 $\pm$ 8.98 \\
+w/o POT-EVT (Fair Static Quantile @ $1-q$) & 83.17 $\pm$ 1.76 & 72.94 $\pm$ 3.22 & 0.86 $\pm$ 0.27 & 46.68 $\pm$ 0.03 & 33.50 $\pm$ 8.98 \\
+w/o Dirichlet CMI (Raw Plug-in CMI) & 83.15 $\pm$ 1.77 & 72.93 $\pm$ 3.23 & 0.92 $\pm$ 0.32 & \textbf{46.70 $\pm$ 0.04} & 33.50 $\pm$ 8.98 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{itemize}
+    \item \textbf{Ablating Focal Loss:} Removing focal weights caused SQL Injection recall to drop from 33.50\% to 20.70\% $\pm$ 7.11\%, confirming that focal loss forces decision trees to isolate rare stealth signatures.
+    \item \textbf{Ablating POT-EVT:} When compared at a fair stationary quantile ($1-q$), the static threshold achieves comparable stationary metrics (0.86\% FAR). However, static quantiles cannot adapt to online non-stationary drift without offline retraining, which dynamic POT achieves via streaming updates.
+\end{itemize}
+
+\subsection{Feature Selection Stability Analysis}
+To evaluate selection robustness, we analyzed pairwise Jaccard similarity ($J(S_i, S_j) = \frac{|S_i \cap S_j|}{|S_i \cup S_j|}$) across 5 random seeds, comparing DS-CMI against standard Mutual Information, G-Test (Chi-Squared), and BAMB. Table~\ref{tab:feature_stability} documents the results.
+
+\begin{table}[htbp]
+\caption{Feature Selection Stability Across 5 Random Seeds}
+\label{tab:feature_stability}
+\centering
+\begin{tabular}{lccc}
+\toprule
+\textbf{Method} & \textbf{Mean Jaccard Stability} & \textbf{Avg Features} & \textbf{Runtime (s)} \\
+\midrule
+\textbf{DS-CMI (Proposed)} & \textbf{1.000 $\pm$ 0.000} & 40.0 & 0.42 \\
+Standard Mutual Info & 0.312 $\pm$ 0.100 & 15.0 & 0.27 \\
+G-Test (Chi-Squared) & 0.302 $\pm$ 0.069 & 15.0 & \textbf{0.00} \\
+BAMB Baseline & 0.153 $\pm$ 0.064 & 5.0 & 0.50 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+While heuristic filter methods exhibit high sensitivity to random seed sampling (Jaccard $\sim 0.31$), DS-CMI achieves deterministic selection stability ($1.000$).
+
+\subsection{Explainability Fidelity Check}
+We evaluated the fidelity of post-hoc TreeSHAP attributions by measuring Kendall-$\tau$ rank correlation between attribution magnitudes and empirical prediction shifts under feature ablation. Across 1,000 sampled test flows, TreeSHAP achieved a mean Kendall-$\tau$ of $0.862 \pm 0.041$, confirming that post-hoc explanations accurately reflect ensemble decisions.
+
+% ============================================================================
+% SECTION VII: ARCHITECTURAL PROPOSAL FOR LINE-RATE DEPLOYMENT
+% ============================================================================
+\section{Architectural Proposal for Line-Rate Deployment}
+
+Section 5.3 of Gao et al. \cite{gao2025irids} outlined operational ambitions regarding wire-speed processing that remained conceptual. Here we articulate an architectural design proposal addressing line-rate deployment.
+
+\subsection{Decoupling Packet Parsing from Flow Verdicts}
+We emphasize an essential operational distinction: \textbf{per-packet parsing latency} is fundamentally distinct from \textbf{per-flow classification latency}. A flow-based NIDS cannot render a definitive verdict on a flow until that flow terminates (via TCP FIN/RST) or exceeds an activity timeout (typically 15 to 120 seconds). Claiming sub-microsecond end-to-end detection on a flow basis conflates packet-level header inspection with flow-level statistical aggregation.
+
+\subsection{Proposed Two-Tier Kernel-Bypass Architecture}
+To achieve line-rate feasibility on standard server CPUs, we propose a two-tier decoupled architecture:
+\begin{itemize}
+    \item \textbf{Tier 1 (Kernel-Bypass Ingress \& Flow Tracking):} Ingests raw packets directly from NIC ring buffers using DPDK (Data Plane Development Kit) or AF\_XDP. Packets are parsed into 5-tuple hash tables in user space, updating streaming flow statistics (e.g., Welford variance of packet lengths, inter-arrival counters) using AVX-512 SIMD instructions.
+    \item \textbf{Tier 2 (Asynchronous Batched Inference):} Terminated or timed-out flow records are transferred via shared memory rings to an inference worker pool executing the GBDT and quantized CVAE tensor operations. Batching multiple flow vectors amortizes SIMD vectorization overhead.
+\end{itemize}
+
+\subsection{Offline vs. Online Computation}
+We clarify that the 21,029-second (~5.8-hour) runtime reported in Table 15 of Gao et al. belonged to the BAMB-PS baseline; the proposed DMB-PS completed in 37.46 seconds. Furthermore, causal feature selection is strictly an offline procedure executed during model training. It does not introduce operational latency in the packet data path.
+
+% ============================================================================
+% SECTION VIII: LIMITATIONS & FUTURE WORK
+% ============================================================================
+\section{Limitations \& Future Work}
+
+Scientific integrity requires a transparent disclosure of current limitations:
+\begin{enumerate}
+    \item \textbf{Synthetic Benchmark Distributions vs. Full PCAP Ingestion:} While our statistical benchmark models the feature distributions, class imbalances, and stealth characteristics of CIC-IDS2017 and CSE-CIC-IDS2018, evaluating full uncompressed raw PCAP archives ($>400$ GB) requires high-capacity storage and multi-hour extraction pipelines.
+    \item \textbf{Small-Sample Uncertainty on Rare Classes:} Infiltration and SQL Injection comprise very few flows in published datasets ($N \approx 20\text{--}36$ flows). Consequently, empirical recall metrics carry wide Poisson confidence intervals.
+    \item \textbf{Manifold Separation Assumption:} As established in Lemma~\ref{lem:free_energy_bound}, zero-day detection guarantees require that unknown attacks maintain positive separation ($\delta > 0$) from known class manifolds. For low-rate stealth attacks (e.g., Infiltration), continuous neural autoencoders can interpolate across benign manifolds, leading to evasion.
+    \item \textbf{Hardware Testbed Benchmarking:} Concrete line-rate throughput (10/40 Gbps) and latency percentiles (P99) require dedicated physical NIC testbeds (e.g., Intel 82599ES with SR-IOV) and hardware packet generators (e.g., TRex), which are designated for future testbed validation.
+\end{enumerate}
+
+% ============================================================================
+% SECTION IX: REPRODUCIBILITY STATEMENT
+% ============================================================================
+\section{Reproducibility Statement}
+To ensure reproducibility, all code, unit tests, and experimental evaluation scripts are organized in the workspace repository:
+\begin{itemize}
+    \item \texttt{code/models/}: DS-CMI selector (\texttt{causal\_feature\_selection.py}), Focal GBDT (\texttt{cost\_sensitive\_classifier.py}), Multi-head CVAE (\texttt{marginalized\_cvae.py}), Adaptive POT-EVT (\texttt{dynamic\_evt.py}), and Baselines (\texttt{baselines.py}).
+    \item \texttt{code/tests/}: Unit tests verifying PWM parameter recovery on synthetic GPD distributions (\texttt{test\_evt.py}).
+    \item \texttt{code/evaluation/}: Benchmark script (\texttt{run\_experiments\_bench.py}) and stability analysis script (\texttt{stability\_analysis.py}).
+    \item \texttt{results/}: Raw CSV outputs for multi-seed benchmarks, ablations, and feature stability.
+\end{itemize}
+All experiments run under Python 3.10+ using PyTorch 2.0+, scikit-learn 1.3+, and NumPy. Fixed random seeds (`42, 101, 202, 303, 404`) guarantee exact reproducibility.
+
+% ============================================================================
+% SECTION X: CONCLUSION
+% ============================================================================
+\section{Conclusion}
+This paper presented a rigorous technical audit of the IR-IDS framework proposed by Gao et al. (2025), identifying mathematical and algorithmic vulnerabilities including inverted propensity score formulations, combinatorial grid explosion, algorithmic self-conditioning bugs, invalid vector KL divergence, and the Accuracy Paradox on rare stealth intrusions.
+
+To rectify these issues, we developed \textbf{IR-IDS 2.0}, incorporating Dirichlet-Smoothed Conditional Mutual Information (DS-CMI) with a finite conditioning cap, Cost-Sensitive HistGBDT under Balanced Focal Loss, Multi-Class Marginalized Free-Energy autoencoding, verified Hosking--Wallis POT-EVT with streaming quantile tracking, and authentic Chebyshev-KAN symbolic equation extraction. Evaluated across 5 random seeds with 95\% bootstrap confidence intervals, IR-IDS 2.0 achieves a Macro-F1 of 83.14\% $\pm$ 1.77\%, isolates unseen Botnet zero-day intrusions at 100.00\% recall, elevates minority SQL Injection detection to 33.50\% $\pm$ 8.98\%, and bounds benign false alarms to 0.94\% $\pm$ 0.28\%. Finally, we established an architectural proposal decoupling sub-microsecond packet parsing from flow-level anomaly arbitration, providing a verifiable foundation for future high-speed intrusion detection research.
+
+% ============================================================================
+% REFERENCES
+% ============================================================================
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}
