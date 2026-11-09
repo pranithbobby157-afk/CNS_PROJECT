@@ -204,3 +204,4 @@ with open("paper_elsevier.tex", "w", encoding="utf-8") as f:
     f.write(content.strip() + "\n")
 
 print("Generated clean humanized paper_elsevier.tex")
+
