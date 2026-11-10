@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Compiles the completely fresh, humanized research paper into a publication-grade PDF using ReportLab.
+Compiles the reviewer-revised research paper into a publication-grade PDF using ReportLab.
 Features dynamic headers, footers, page numbering, embedded publication figures, and verified data tables.
 """
 
@@ -40,8 +40,8 @@ class NumberedCanvas(canvas.Canvas):
 
         # Header (Pages 2+)
         if self._pageNumber > 1:
-            self.drawString(54, 755, "Robust Zero-Day Network Intrusion Detection via Causal Conditioning & Energy Gating")
-            self.drawRightString(558, 755, "IEEE TRANSACTIONS ON INFORMATION FORENSICS AND SECURITY (2026)")
+            self.drawString(54, 755, "Robust Zero-Day Network Intrusion Detection via Markov Conditioning & Energy Gating")
+            self.drawRightString(558, 755, "PREPRINT --- UNDER ACADEMIC REVIEW (2026)")
             self.setStrokeColor(colors.HexColor("#cbd5e1"))
             self.setLineWidth(0.5)
             self.line(54, 750, 558, 750)
@@ -75,8 +75,8 @@ def build_pdf(filename="IR_IDS_2_0_Research_Paper.pdf"):
         'DocTitle',
         parent=styles['Heading1'],
         fontName='Helvetica-Bold',
-        fontSize=16,
-        leading=20,
+        fontSize=15,
+        leading=19,
         textColor=colors.HexColor('#0f172a'),
         alignment=1, # Center
         spaceAfter=8
@@ -121,7 +121,7 @@ def build_pdf(filename="IR_IDS_2_0_Research_Paper.pdf"):
         'SecH1',
         parent=styles['Heading2'],
         fontName='Helvetica-Bold',
-        fontSize=11.5,
+        fontSize=11,
         leading=15,
         textColor=colors.HexColor('#0f172a'),
         spaceBefore=12,
@@ -155,92 +155,87 @@ def build_pdf(filename="IR_IDS_2_0_Research_Paper.pdf"):
     story = []
 
     # Title & Metadata
-    story.append(Paragraph("Robust Zero-Day Network Intrusion Detection via Causal Markov Conditioning and Multi-Hypothesis Free-Energy Gating", title_style))
+    story.append(Paragraph("Robust Zero-Day Network Intrusion Detection via Information-Theoretic Markov Conditioning and Multi-Hypothesis Free-Energy Gating", title_style))
     story.append(Paragraph("<b>V Bobby Pranith - CS23I1046, Revanth V Mandava - CS23B1009, T Balaji - CS23B1020</b><br/><i>Department of Computer Science and Engineering, Indian Institute of Information Technology, Design and Manufacturing (IIITDM), Kancheepuram, India</i>", authors_style))
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#cbd5e1"), spaceAfter=10))
 
     # Abstract
     story.append(Paragraph("<b>ABSTRACT</b>", abstract_heading))
     abstract_content = (
-        "Detecting unobserved zero-day exploits on high-speed enterprise perimeters remains a frustrating operational challenge. "
-        "Standard supervised classifiers collapse when traffic patterns drift away from training distributions because their closed-world softmax layers "
-        "map novel attack patterns into known classes. Unsupervised anomaly detectors flag outliers, but security teams routinely discard uncalibrated "
-        "reconstruction alarms that lack interpretable root-cause justifications. "
-        "In this work, we present an end-to-end framework that resolves both bottlenecks without sacrificing wire-speed packet throughput. "
-        "First, we identify invariant traffic signatures by formulating Dirichlet-Smoothed Conditional Mutual Information (DS-CMI) over quantile partitions. "
-        "Capping conditioning cardinality to three variables and pooling low-density strata eliminates sample sparsity, yielding invariant Markov blankets "
-        "that remain identical across random splits (Jaccard = 1.000). Second, we counter severe class imbalance during pre-classification using a histogram tree "
-        "ensemble guided by balanced focal loss, raising minority SQL injection recall from 19.90% to 33.50% without inflating benign alarms. "
-        "Third, we prevent cascading classification errors during open-set arbitration: rather than conditioning generative autoencoders on a brittle "
-        "single-label prediction, our pipeline computes a marginalized free-energy scalar across all class hypotheses under a regularized Ledoit–Wolf Mahalanobis metric. "
-        "We prove that zero-day flows outside known class manifolds incur bounded high energy regardless of upstream routing. Anomaly cutoffs update continuously "
-        "using sliding-window benign quantiles paired with Hosking–Wallis extreme value moments and an adversarial slew-rate limiter. "
-        "Across five random seeds on CIC-IDS2017 benchmarks, our system reaches 83.14% Macro-F1, isolates unseen Botnet zero-days at 100.00% recall, "
-        "and holds benign false alarms down to 0.94% (a twenty-fold drop compared to recent dual-blanket baselines). We analyze the engineering limits of "
-        "flow-level statistics on stealth Infiltration attacks and outline a two-tier kernel-bypass architecture sustaining 300,000 flows per second per CPU core."
+        "Detecting previously unseen zero-day attacks in high-speed enterprise networks remains a challenging problem for network intrusion detection systems (NIDS). "
+        "Supervised classifiers often perform poorly when traffic distributions change because closed-world softmax layers map novel attack patterns into known classes. "
+        "Unsupervised anomaly detectors flag outliers, but security analysts often distrust uncalibrated reconstruction scores that do not provide clear explanations. "
+        "In this work, we present an end-to-end framework to address both issues. First, to reduce the number of possible conditioning combinations, we divide continuous "
+        "features into eight quantile-based bins and limit the conditioning set to three variables. We formulate Dirichlet-Smoothed Conditional Mutual Information (DS-CMI) "
+        "over these partitions and pool low-density strata to remove sample sparsity, producing stable Markov boundaries that remain consistent across random splits (Jaccard = 1.000). "
+        "Second, to handle class imbalance during pre-classification, we train a histogram gradient boosted tree with balanced focal loss, improving minority SQL injection recall "
+        "from 19.90% to 33.50% without increasing false alarms on benign flows. Third, to avoid cascading classification errors during open-set detection, we replace single-label conditioning "
+        "with a marginalized free-energy score computed across all class hypotheses using a regularized Ledoit–Wolf Mahalanobis distance. We derive an analytical lower bound proving that "
+        "zero-day flows outside known class manifolds produce elevated free energy regardless of upstream predictions. Anomaly thresholds are updated dynamically using sliding-window benign "
+        "quantiles, Hosking–Wallis probability-weighted moments, and an adversarial slew-rate limiter. "
+        "We evaluated our implementation across five random seeds on the CIC-IDS2017 benchmark. The proposed system achieves 83.14% Macro-F1 and reduces the benign false alarm rate to 0.94% "
+        "(a twenty-fold reduction compared to dual-blanket baselines). On unseen zero-day traffic, the system achieves an overall recall of 46.68% (560/1,200 flows): it detects 100.00% of unseen "
+        "Botnet attacks (560/560 flows) due to structural beaconing differences, but fails on stealthy Infiltration attacks (0.03% recall, 0/640 flows) because flow-level statistics without payload "
+        "inspection cannot differentiate administrative SSH/RDP sessions from legitimate traffic. On our evaluation hardware, the implemented Python/PyTorch pipeline processes flows in an average of "
+        "8.65 microseconds (115,620 flows/second). Finally, we discuss an architectural design based on kernel bypass that could scale processing to line rate in production environments."
     )
     story.append(Paragraph(abstract_content, abstract_text))
-    story.append(Paragraph("<b>Keywords:</b> Intrusion detection, zero-day attacks, causal feature selection, Markov blankets, open-set recognition, free energy, extreme value theory, kernel bypass.", body_style))
+    story.append(Paragraph("<b>Keywords:</b> Intrusion detection, zero-day attacks, Markov blanket, conditional mutual information, open-set recognition, free energy, extreme value theory.", body_style))
     story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#cbd5e1"), spaceBefore=5, spaceAfter=10))
 
     # Section 1
     story.append(Paragraph("1. Introduction", h1_style))
     story.append(Paragraph(
-        "High-speed enterprise links move staggering amounts of information. On 10 to 40 GbE backbones carrying millions of active TCP sessions, "
-        "human analysts cannot examine individual packet payloads. Security Operations Centers (SOCs) place their trust in Network Intrusion Detection Systems (NIDS) "
-        "to separate benign user transactions from malicious probes. The overwhelming majority of operational systems rely on supervised tree ensembles—predominantly "
-        "Random Forests or Gradient Boosted Decision Trees. In offline evaluations using benchmark datasets, these supervised models frequently produce headline accuracy "
-        "figures exceeding 98%. On live network links, however, these same systems fail repeatedly.",
+        "Modern enterprise networks generate large volumes of traffic, making manual monitoring difficult. On 10 to 40 GbE backbone links carrying millions of concurrent TCP sessions, "
+        "human analysts cannot inspect packet payloads individually. Security Operations Centers (SOCs) depend on Network Intrusion Detection Systems (NIDS) to distinguish benign user activity "
+        "from unauthorized intrusions. Most deployed commercial and open-source classifiers use supervised learning algorithms, such as Random Forests or Gradient Boosted Decision Trees. "
+        "While these models achieve high accuracy on standard test splits, their detection performance often deteriorates on live enterprise networks.",
         body_style
     ))
     story.append(Paragraph(
-        "Their failure stems from a fundamental modeling flaw: supervised classifiers assume a closed world. They presume every flow encountered during inference "
-        "belongs to one of the specific traffic categories observed during model training. When an adversary launches an unobserved exploit—a true zero-day attack—the "
-        "classifier possesses no mechanism to declare uncertainty. Instead, its internal decision boundaries project the anomaly onto whichever training class lies "
-        "nearest in feature space. If an attacker constructs an exploit that mimics ordinary web browsing volume, the model labels the connection benign. The intrusion "
-        "proceeds unnoticed.",
+        "A primary cause of this deterioration is the closed-world assumption: supervised classifiers assume every flow observed during inference belongs to a category present in the training set. "
+        "When an attacker deploys a novel exploit—a zero-day attack—the classifier cannot report an unknown label. Instead, it assigns the flow to the closest known training class. "
+        "If the attack traffic resembles standard web traffic in volume and packet size, it is classified as benign and bypasses the perimeter unnoticed.",
         body_style
     ))
     story.append(Paragraph(
-        "Unsupervised generative models approach the problem from the opposite direction. Autoencoders and density estimators learn the normal traffic baseline and "
-        "flag records that incur high reconstruction error. Yet security teams routinely silence these tools in production. The reason is opacity. A network engineer "
-        "cannot take an operational server offline or terminate an encrypted database pipe merely because a black-box autoencoder generated an elevated anomaly scalar. "
-        "Incident responders require concrete, packet-level evidence detailing which header fields, timing deviations, or byte counters violated operational expectations.",
+        "Unsupervised anomaly detectors attempt to avoid this limitation by modeling normal traffic patterns and flagging flows with high reconstruction error. "
+        "However, in operational settings, security teams often struggle to adopt black-box anomaly detectors. A network operator cannot isolate a critical server or disrupt an enterprise database connection "
+        "based solely on a scalar anomaly score without knowing which packet headers, byte counters, or inter-arrival times triggered the alert.",
         body_style
     ))
     story.append(Paragraph(
-        "Reconciling open-set zero-day detection with verifiable decision logic motivated recent research into hybrid architectures. Notably, Gao et al. (Computers & Security, 2025) "
-        "proposed IR-IDS, attempting to integrate causal Markov blanket selection, Shapley-routed decision trees, and Kolmogorov–Arnold Network (KAN) autoencoders calibrated via "
-        "Extreme Value Theory (EVT). While their conceptual direction is compelling, our technical inspection of their formulations reveals severe mathematical, algorithmic, and "
-        "empirical vulnerabilities: inverted propensity conditioning, combinatorial grid collapse, self-conditioning loop bugs, invalid vector KL metrics, and an acute accuracy paradox "
-        "masking near-total failure on stealthy exploits (2.78% recall on Infiltration).",
+        "To reconcile open-set zero-day detection with interpretable decision rules, recent research has explored hybrid architectures. Gao et al. (Computers & Security, 2025) proposed IR-IDS, "
+        "combining causal Markov blanket feature selection (DMB-PS), tree-based classification, and Kolmogorov–Arnold Network (KAN) autoencoders with Extreme Value Theory (EVT) thresholding. "
+        "While the goal of combining feature selection with open-set gating is sensible, a technical review of their formulations reveals five concrete issues: inverted propensity conditioning, "
+        "combinatorial grid collapse, self-conditioning search bugs, invalid vector KL metrics, and an evaluation skew masking failures on stealth attacks (2.78% recall on Infiltration).",
         body_style
     ))
 
     # Section 2
     story.append(Paragraph("2. Technical Audit of Prior Formulations", h1_style))
     story.append(Paragraph(
-        "<b>2.1 Inverted Propensity Conditioning:</b> Causal inference strictly defines propensity as e(x) = P(T = 1 | X = x). Gao et al. inverted this to e(X) = P(X = 1 | T), "
-        "calculating class-conditional likelihoods rather than treatment probabilities. This Naive-Bayes likelihood fails to balance baseline covariates.",
+        "<b>2.1 Inverted Propensity Formulation:</b> In causal inference, propensity scores balance observed covariates between cohorts: e(x) = P(W = 1 | X = x). "
+        "Gao et al. inverted this to e(X) = P(X = 1 | T), calculating class-conditional likelihoods rather than treatment probabilities. This Naive-Bayes likelihood fails to balance baseline covariates.",
         body_style
     ))
     story.append(Paragraph(
         "<b>2.2 Combinatorial Grid Collapse:</b> Discretizing 10 conditioning features across 15 bins creates 15^10 ≈ 5.76 × 10^11 grid cells. For typical training splits of 35,000 flows, "
-        "expected cell density drops to 6.07 × 10^-8 samples (>99.9999% empty cells), rendering empirical frequency ratios statistically meaningless.",
+        "expected cell density drops to 6.07 × 10^-8 samples (>99.9999% empty cells), rendering empirical frequency ratios statistically unreliable.",
         body_style
     ))
     story.append(Paragraph(
-        "<b>2.3 Self-Conditioning and Iterator Bugs:</b> Algorithm 1 of Gao et al. tests X ⊥ Y | CMBS where X ∈ CMBS. Because any random variable conditioned on a set containing itself is "
+        "<b>2.3 Self-Conditioning in Markov Blanket Pruning:</b> Algorithm 1 of Gao et al. tests X ⊥ Y | CMBS where X ∈ CMBS. Because any random variable conditioned on a set containing itself is "
         "deterministic, conditional mutual information evaluates to zero, erroneously eliminating valid predictive features while in-place list mutation skips adjacent elements.",
         body_style
     ))
     story.append(Paragraph(
-        "<b>2.4 Vector-Level KL Divergence Breakdown:</b> Evaluating Kullback–Leibler divergence on continuous standardized feature vectors is mathematically invalid. Continuous z-scores contain "
-        "negative numbers and do not sum to unity, yielding undefined logarithms and imaginary numbers.",
+        "<b>2.4 Continuous Vector KL Divergence:</b> Evaluating Kullback–Leibler divergence on continuous standardized feature vectors is mathematically invalid. Continuous z-scores contain "
+        "negative numbers and do not sum to unity, yielding undefined logarithms and complex values.",
         body_style
     ))
     story.append(Paragraph(
-        "<b>2.5 The Stealth Attack Accuracy Paradox:</b> Published tables reveal that Gao et al.'s >98.8% headline accuracy was skewed by massive benign traffic. Infiltration recall was 2.78% "
+        "<b>2.5 Accuracy Paradox on Stealth Attacks:</b> Published tables reveal that Gao et al.'s >98.8% headline accuracy was skewed by massive benign traffic. Infiltration recall was 2.78% "
         "(1 of 36 flows detected), SQL injection was 23.81% (5 of 21 flows), and WebDDoS was 7.69%. Real-world stealth attacks bypassed the system almost completely.",
         body_style
     ))
@@ -248,48 +243,54 @@ def build_pdf(filename="IR_IDS_2_0_Research_Paper.pdf"):
     # Section 3
     story.append(Paragraph("3. The IR-IDS 2.0 Methodology", h1_style))
     story.append(Paragraph(
-        "<b>3.1 Dirichlet-Smoothed Causal Feature Discovery (DS-CMI):</b> We partition continuous columns into B = 8 quantile bins and cap conditioning cardinality to |Z| ≤ 3. "
-        "Empirical joint frequencies are smoothed with a symmetric Dirichlet prior (Jeffreys prior, α = 0.5):",
+        "<b>3.1 Dirichlet-Smoothed Markov Feature Selection (DS-CMI):</b> To reduce the number of possible conditioning combinations, we divide continuous features into eight quantile-based bins "
+        "(B = 8) and limit the conditioning set to three variables (|Z| ≤ 3). Empirical joint frequencies are smoothed with a symmetric Dirichlet prior (Jeffreys prior, α = 0.5):",
         body_style
     ))
     story.append(Paragraph("P(X = x, Y = y | Z = z) = [ N(x, y, z) + α ] / [ N(z) + α · B · K ]", formula_style))
     story.append(Paragraph(
-        "Strata with fewer than four flows are pooled into a background stratum. Because α > 0, probabilities are strictly positive, guaranteeing bounded CMI values and zero division errors. "
-        "Greedy backward elimination removes the single least-informative variable per pass, preserving co-dependent causal predictors and preventing index skips.",
+        "Strata with fewer than four flows are pooled into an aggregate background stratum. Because α > 0, probabilities are strictly positive, guaranteeing bounded CMI values and eliminating division-by-zero crashes. "
+        "Greedy backward elimination removes the single least-informative variable per pass, preserving co-dependent predictors and preventing index skips.",
         body_style
     ))
     story.append(Paragraph(
-        "<b>3.2 Cost-Sensitive Invariant Ensemble with Balanced Focal Loss:</b> We train a histogram gradient-boosted tree ensemble under balanced focal loss with γ = 2.0, "
+        "<b>3.2 Cost-Sensitive HistGBDT with Balanced Focal Loss:</b> We train a histogram gradient-boosted tree ensemble under balanced focal loss with γ = 2.0, "
         "applying inverse-class weights w_c = (N / (K · N_c))^γ to force tree splits to prioritize rare stealth attacks without distorting normal traffic boundaries.",
         body_style
     ))
     story.append(Paragraph(
-        "<b>3.3 Multi-Class Marginalized Free-Energy CVAE:</b> Rather than relying on a brittle top-1 discrete label feed, we measure reconstruction residuals using regularized Ledoit–Wolf "
+        "<b>3.3 Multi-Class Marginalized Free-Energy CVAE:</b> Rather than relying on a single top-1 discrete label feed, we measure reconstruction residuals using regularized Ledoit–Wolf "
         "shrinkage Mahalanobis distances and integrate free energy across all K class hypotheses weighted by classifier posterior consensus:",
         body_style
     ))
-    story.append(Paragraph("E(x) = -T · log Σ p(y = k | x) · exp( -0.5 / T · D_Σ(x, x_hat^(k)) )", formula_style))
+    story.append(Paragraph("E(x) = -T · log Σ p(y = k | x) · exp( - 0.5 / T · D_Σ(x, x_hat^(k)) )", formula_style))
     story.append(Paragraph(
-        "When an unobserved zero-day arrives, its features lie outside every known class manifold, causing E(x) to surge regardless of upstream routing mistakes.",
+        "When an unobserved zero-day arrives, its features lie outside every known class manifold, causing E(x) to surge regardless of upstream routing mistakes. "
+        "The PyTorch CVAE utilizes a 40-dimensional input, 64-32 encoder layers, a 16-dimensional latent space z, and a 32-64 decoder trained under Adam (lr=1e-3, batch=128, 20 epochs).",
         body_style
     ))
     story.append(Paragraph(
         "<b>3.4 Dynamic POT-EVT Anomaly Gating:</b> Tail energies are modeled via the Generalized Pareto Distribution (GPD). Shape and scale parameters are recovered in closed form using "
-        "Hosking–Wallis Probability Weighted Moments (PWM). Thresholds update online via sliding-window empirical quantiles bounded by an adversarial slew-rate limiter.",
+        "Hosking–Wallis Probability Weighted Moments (PWM). Thresholds update online via sliding-window empirical quantiles bounded by an adversarial rate limiter.",
         body_style
     ))
     story.append(Paragraph(
-        "<b>3.5 Symbolic Chebyshev-KAN Decomposition:</b> Bottleneck layers utilize orthogonal Chebyshev polynomials φ_j(x) = Σ c_i T_i(x) with L_1 pruning, exporting explicit algebraic "
-        "polynomials that permit instant field-level verification by SOC analysts.",
+        "<b>3.5 Symbolic Chebyshev-KAN Post-Hoc Audit:</b> Bottleneck layers utilize orthogonal Chebyshev polynomials φ_j(x) = Σ c_i T_i(x) with L_1 pruning, exporting explicit algebraic "
+        "polynomials that permit direct field-level verification by SOC analysts.",
+        body_style
+    ))
+    story.append(Paragraph(
+        "<b>3.6 Implemented System vs. Architectural Extensions:</b> All benchmark experiments evaluate our software implementation in Python/PyTorch on host CPU hardware. "
+        "The kernel-bypass DPDK architecture described in Section 6 is a conceptual design for future production line-rate integration.",
         body_style
     ))
 
     # Section 4: Theoretical Proofs
     story.append(Paragraph("4. Theoretical Analysis & Formal Proofs", h1_style))
     story.append(Paragraph(
-        "<b>Theorem 1 (Protocol Constraints Violate Faithfulness):</b> Deterministic protocol conservation laws (e.g., Total Bytes = Fwd Bytes + Bwd Bytes) enforce linear dependencies. "
-        "When structural parameters satisfy β_1 = -β_2, partial covariance vanishes: Cov(X_3, Y) = 0. Yet in the underlying graph, X_3 is d-connected to Y. "
-        "The independence arises from parameter cancellation rather than d-separation, proving that network traffic inherently violates graph faithfulness.",
+        "<b>Theorem 1 (Protocol Identities Induce Linear Faithfulness Violations):</b> In linear Structural Causal Models (SCMs) with additive Gaussian disturbances governed by deterministic protocol identities "
+        "(e.g., Total Bytes = Fwd Bytes + Bwd Bytes), structural parameters satisfying β_1 = -β_2 yield Cov(X_3, Y) = 0 and X_3 ⊥ Y, despite active directed paths X_1 → Y and X_2 → Y. "
+        "The statistical independence arises from parameter cancellation rather than graphical d-separation, violating the Faithfulness condition.",
         body_style
     ))
     story.append(Paragraph(
@@ -341,7 +342,7 @@ def build_pdf(filename="IR_IDS_2_0_Research_Paper.pdf"):
     # Add Figures
     if os.path.exists("fig1_pipeline_architecture.png"):
         story.append(Image("fig1_pipeline_architecture.png", width=480, height=220))
-        story.append(Paragraph("<b>Figure 1:</b> IR-IDS 2.0 End-to-End Operational Pipeline: From Raw Ingress Traffic to Robust Scaling, DS-CMI Causal Filtering, Cost-Sensitive Invariant Classification, Multi-Head Marginalized Free Energy Evaluation, Dynamic POT-EVT Thresholding, and Real-Time SOC Symbolic Audit.", abstract_text))
+        story.append(Paragraph("<b>Figure 1:</b> IR-IDS 2.0 End-to-End Operational Pipeline: Ingress traffic passes through robust scaling, DS-CMI Markov blanket selection, balanced focal HistGBDT pre-classification, multi-head marginalized CVAE free-energy evaluation, dynamic POT-EVT thresholding, and Chebyshev-KAN symbolic verification.", abstract_text))
         story.append(Spacer(1, 8))
 
     if os.path.exists("fig1_free_energy_distribution.png"):
@@ -355,41 +356,44 @@ def build_pdf(filename="IR_IDS_2_0_Research_Paper.pdf"):
         story.append(Spacer(1, 8))
 
     # Key Empirical Insights
-    story.append(Paragraph("<b>5.1 Key Findings & Honest Disaggregation:</b>", h1_style))
+    story.append(Paragraph("<b>5.1 Key Findings & Disaggregated Zero-Day Reporting:</b>", h1_style))
     story.append(Paragraph(
+        "• <b>Overall Zero-Day Recall:</b> 46.68% ± 0.03% (560/1,200 flows detected).<br/>"
         "• <b>Botnet Zero-Day Detection:</b> 100.00% ± 0.00% recall (560/560 flows detected). Periodic C2 beaconing deviates sharply from benign manifolds.<br/>"
-        "• <b>Infiltration Zero-Day Detection:</b> 0.03% ± 0.06% recall (0/640 flows detected). Lateral movement via normal administrative protocols (SSH/RDP) produces no rate anomalies. "
-        "At the flow level, statistics reside entirely within the benign density envelope.<br/>"
+        "• <b>Infiltration Zero-Day Failure:</b> 0.03% ± 0.06% recall (0/640 flows detected). Lateral movement via normal administrative protocols (SSH/RDP) produces no rate anomalies. "
+        "At the flow level without payload inspection, statistics reside entirely within the benign density envelope.<br/>"
         "• <b>False Alarm Suppression:</b> Bounded to 0.94% ± 0.28% (down from 19.12% in the baseline—a 20-fold reduction).<br/>"
         "• <b>Minority SQL Injection Gain:</b> Balanced focal loss elevated recall from 19.90% to 33.50% ± 8.98% (113/400 test flows detected).<br/>"
-        "• <b>Feature Selection Stability:</b> DS-CMI achieved Jaccard similarity of 1.000 ± 0.000 across all 5 seeds, outperforming Mutual Information (0.312) and BAMB (0.153).",
+        "• <b>Measured Hardware Execution Latency:</b> On an Intel Core processor under PyTorch 2.0 CPU execution, per-flow inference averaged <b>8.65 microseconds</b> (0.0086 ms), achieving a software throughput of <b>115,620 flows/second</b> over 8,000 test flows.",
         body_style
     ))
 
     # Section 6: Deployment
     story.append(Paragraph("6. Line-Rate Deployment Architecture", h1_style))
     story.append(Paragraph(
-        "We design a two-tier decoupled architecture: Tier 1 (Fast-Path) executes in user-space via DPDK/AF_XDP, parsing 5-tuples and extracting DS-CMI features into lockless ring buffers. "
-        "Tier 2 (Intelligence Plane) performs SIMD-vectorized tree classification in 1.2 microseconds and GPU-accelerated free-energy evaluation in 2.1 microseconds. "
-        "Total per-flow latency is 3.3 microseconds, sustaining 300,000 flows per second per core.",
+        "We discuss a two-tier decoupled architecture: Tier 1 (Fast-Path) executes in user-space via DPDK/AF_XDP, parsing 5-tuples and extracting DS-CMI features into lockless ring buffers. "
+        "Tier 2 (Intelligence Plane) performs SIMD-vectorized tree classification and GPU-accelerated free-energy evaluation. "
+        "While our laboratory Python/PyTorch implementation achieves 115,620 flows/second (8.65 us/flow), this kernel-bypass design represents our architectural proposal to scale beyond 300,000 flows per second in production.",
         body_style
     ))
 
     # Section 7: Limitations & Reproducibility
     story.append(Paragraph("7. Limitations & Reproducibility", h1_style))
     story.append(Paragraph(
-        "Flow-level NIDS cannot inspect encrypted application payloads; stealthy Infiltration requires endpoint telemetry (EDR). "
-        "All source code, models, benchmark scripts, and dataset loaders are available on GitHub: https://github.com/pranithbobby157-afk/CNS_PROJECT.",
+        "Flow-level statistical NIDS cannot inspect encrypted application payloads; stealthy Infiltration requires endpoint telemetry (EDR). "
+        "All source code, models, benchmark scripts, and dataset loaders are publicly available on GitHub: https://github.com/pranithbobby157-afk/CNS_PROJECT.",
         body_style
     ))
 
     # Section 8: Conclusion
     story.append(Paragraph("8. Conclusion", h1_style))
     story.append(Paragraph(
-        "This paper audited the IR-IDS architecture, exposing critical mathematical defects including inverted propensity scores, combinatorial grid collapse, self-conditioning bugs, "
-        "and invalid vector KL divergence. We introduced IR-IDS 2.0, uniting Dirichlet-Smoothed Causal Selection, cost-sensitive balanced focal trees, multi-class marginalized free-energy "
-        "autoencoding, and Hosking–Wallis POT-EVT. Across five random seeds on CIC-IDS2017, IR-IDS 2.0 achieves 83.14% Macro-F1, isolates unseen Botnet zero-days at 100.00%, "
-        "and confines false alarms to 0.94%. Coupling causal invariance with verifiable transparency delivers an effective, auditable defense for high-speed networks.",
+        "This paper audited the IR-IDS architecture, identifying theoretical and algorithmic issues including inverted propensity scores, combinatorial grid collapse, self-conditioning bugs, "
+        "and invalid vector KL divergence. We introduced IR-IDS 2.0, uniting Dirichlet-Smoothed Markov Feature Selection (DS-CMI), cost-sensitive balanced focal trees, multi-class marginalized free-energy "
+        "autoencoding, and Hosking–Wallis POT-EVT. Across five random seeds on CIC-IDS2017, IR-IDS 2.0 achieves 83.14% Macro-F1, reduces operational false alarms to 0.94%, and detects 100.00% of unseen Botnet zero-days. "
+        "We also openly report the limitation of flow-level statistics on stealth Infiltration attacks (0.03% recall), yielding an overall zero-day recall of 46.68%. "
+        "On our evaluation hardware, the implemented Python/PyTorch pipeline achieves an average per-flow latency of 8.65 microseconds (115,620 flows/second). "
+        "By coupling robust feature selection with verifiable open-set energy gating, IR-IDS 2.0 provides an effective, transparent defense for enterprise networks.",
         body_style
     ))
 
