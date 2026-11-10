@@ -20,7 +20,7 @@
 
 \title{Robust Zero-Day Network Intrusion Detection via Causal Markov Conditioning and Multi-Hypothesis Free-Energy Gating}
 
-\author{V~Bobby~Pranith, Revanth~V~Mandava, and~T~Balaji%
+\author{CS23I1046 V~Bobby~Pranith, CS23B1009 Revanth~V~Mandava, and CS23B1020~T~Balaji%
 \IEEEcompsocitemizethanks{
 \IEEEcompsocthanksitem V. Bobby Pranith (CS23I1046), Revanth V. Mandava (CS23B1009), and T. Balaji (CS23B1020) are with the Department of Computer Science and Engineering, Indian Institute of Information Technology, Design and Manufacturing (IIITDM), Kancheepuram, Chennai 600127, India. E-mail: cs23i1046@iiitdm.ac.in.
 }}
@@ -149,7 +149,14 @@ Gao et al. claimed headline detection accuracies exceeding 98.8\%. However, an i
 Their 98.8\% accuracy was driven almost exclusively by voluminous benign sessions and massive DoS packet floods. Stealthy, targeted intrusions passed straight through the detector unnoticed.
 
 \section{The IR-IDS 2.0 Methodology}
-IR-IDS 2.0 replaces each broken component with a mathematically verified, operationally stable module.
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{fig1_pipeline_architecture.png}
+\caption{End-to-end operational architecture of IR-IDS 2.0. Ingress network flows pass through robust quantile scaling, DS-CMI causal Markov selection, balanced focal HistGBDT pre-classification, multi-hypothesis marginalized CVAE free-energy estimation, dynamic POT-EVT thresholding, and Chebyshev-KAN symbolic verification.}
+\label{fig:architecture}
+\end{figure*}
+
+As illustrated in Fig.~\ref{fig:architecture}, IR-IDS 2.0 replaces each broken component with a mathematically verified, operationally stable module.
 
 \subsection{Dirichlet-Smoothed Causal Selection (DS-CMI)}
 To prevent combinatorial state explosion while preserving non-linear dependency detection, we discretize continuous features into $B$ equal-depth quantile bins ($B = 8$). We enforce an explicit conditioning cap: $|Z| \le 3$. 
@@ -193,6 +200,15 @@ Given classifier posterior distribution $p(y = k \mid x)$, the Marginalized Free
 E(x) = -T \log \sum_{k=0}^{K-1} p(y = k \mid x) \exp \left( -\frac{1}{2 T} \mathcal{D}_{\mathbf{\Sigma}}\left(x, \hat{x}^{(k)}\right) \right)
 \end{equation}
 where $T$ represents an empirical temperature parameter. When an incoming flow represents an unobserved zero-day exploit, its features will fail reconstruction under every known class hypothesis $k$. Consequently, $E(x)$ rises sharply regardless of upstream classification errors.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig1_free_energy_distribution.png}
+\caption{Empirical marginalized free-energy distributions across traffic cohorts. Known benign and training attack flows maintain low reconstruction energy, while unseen zero-day exploits incur high reconstruction errors separated by the Hosking--Wallis POT-EVT tail threshold.}
+\label{fig:free_energy}
+\end{figure}
+
+Fig.~\ref{fig:free_energy} plots the empirical separation in free energy: normal and known attacks remain concentrated at low values, whereas unseen zero-day intrusions extend far into the extreme tail.
 
 \subsection{Dynamic Extreme Value Thresholding (POT-EVT)}
 Extreme tail reconstruction energies are governed by the Peaks-Over-Threshold (POT) Generalized Pareto Distribution (GPD):
@@ -293,7 +309,14 @@ Reimplemented Baseline \cite{gao2025} & 76.22 $\pm$ 1.35 & 65.06 $\pm$ 3.19 & 19
 \end{table*}
 
 \subsection{Head-to-Head Benchmark Findings}
-Table~\ref{tab:main_results} reports comparative evaluation metrics across all five seeds:
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{fig2_head_to_head_comparison.png}
+\caption{Multi-seed empirical benchmark comparison across five independent random splits with 95\% bootstrap confidence intervals. IR-IDS 2.0 achieves superior Macro-F1 and G-Mean while suppressing benign false alarms to 0.94\% (a 20-fold reduction relative to baseline).}
+\label{fig:benchmark}
+\end{figure*}
+
+Table~\ref{tab:main_results} and Fig.~\ref{fig:benchmark} report comparative evaluation metrics across all five seeds:
 \begin{itemize}
     \item \textbf{Detection Balance:} IR-IDS 2.0 achieves \textbf{83.14\% Macro-F1} and \textbf{72.93\% G-Mean}, outperforming both closed-world baselines and the reimplemented dual-blanket model.
     \item \textbf{False Alarm Suppression:} The baseline model generated an unviable 19.12\% false alarm rate on benign traffic. IR-IDS 2.0 confines false alarms to \textbf{0.94\%}—a 20-fold reduction critical for practical SOC deployment.

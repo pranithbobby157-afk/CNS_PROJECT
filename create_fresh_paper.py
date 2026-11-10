@@ -358,3 +358,4 @@ with open("paper.tex", "w", encoding="utf-8") as f:
     f.write(fresh_latex.strip() + "\n")
 
 print("Successfully written completely fresh paper.tex, length:", len(fresh_latex))
+

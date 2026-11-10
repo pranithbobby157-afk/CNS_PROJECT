@@ -344,9 +344,14 @@ def build_pdf(filename="IR_IDS_2_0_Research_Paper.pdf"):
         story.append(Paragraph("<b>Figure 1:</b> IR-IDS 2.0 End-to-End Operational Pipeline: From Raw Ingress Traffic to Robust Scaling, DS-CMI Causal Filtering, Cost-Sensitive Invariant Classification, Multi-Head Marginalized Free Energy Evaluation, Dynamic POT-EVT Thresholding, and Real-Time SOC Symbolic Audit.", abstract_text))
         story.append(Spacer(1, 8))
 
+    if os.path.exists("fig1_free_energy_distribution.png"):
+        story.append(Image("fig1_free_energy_distribution.png", width=480, height=200))
+        story.append(Paragraph("<b>Figure 2:</b> Empirical marginalized free-energy distributions across traffic cohorts. Known benign and training attack flows maintain low energy, while unseen zero-day exploits incur high reconstruction errors separated by the Hosking–Wallis POT-EVT tail threshold.", abstract_text))
+        story.append(Spacer(1, 8))
+
     if os.path.exists("fig2_head_to_head_comparison.png"):
         story.append(Image("fig2_head_to_head_comparison.png", width=480, height=220))
-        story.append(Paragraph("<b>Figure 2:</b> Multi-seed empirical benchmark comparison across 5 random seeds (95% bootstrap confidence intervals), showing Macro-F1, False Alarm Rate, and Zero-Day Recall.", abstract_text))
+        story.append(Paragraph("<b>Figure 3:</b> Multi-seed empirical benchmark comparison across 5 random seeds (95% bootstrap confidence intervals), showing Macro-F1, False Alarm Rate, and Zero-Day Recall.", abstract_text))
         story.append(Spacer(1, 8))
 
     # Key Empirical Insights

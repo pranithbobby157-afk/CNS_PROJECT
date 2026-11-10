@@ -109,6 +109,10 @@ Their 98.8% accuracy was driven almost exclusively by voluminous benign sessions
 
 ## 4. The IR-IDS 2.0 Methodology
 
+![Figure 1: Pipeline Architecture](fig1_pipeline_architecture.png)
+*Figure 1: End-to-end operational architecture of IR-IDS 2.0. Ingress network flows pass through robust quantile scaling, DS-CMI causal Markov selection, balanced focal HistGBDT pre-classification, multi-hypothesis marginalized CVAE free-energy estimation, dynamic POT-EVT thresholding, and Chebyshev-KAN symbolic verification.*
+
+
 ### 4.1 Dirichlet-Smoothed Causal Selection (DS-CMI)
 To prevent combinatorial state explosion while preserving non-linear dependency detection, we discretize continuous features into $B$ equal-depth quantile bins ($B = 8$). We enforce an explicit conditioning cap: $|Z| \le 3$. Rather than relying on unregularized frequency counts, we smooth empirical cell counts using a symmetric Dirichlet prior with Jeffreys parameter $\alpha = 0.5$:
 $$P(X=x, Y=y \mid Z=z) = \frac{N(x, y, z) + \alpha}{N(z) + \alpha \cdot B \cdot K}$$
@@ -181,6 +185,9 @@ The lower bound holds regardless of how the classifier distributes posterior wei
 ## 6. Experimental Evaluation
 
 We evaluate our system on the standard CIC-IDS2017 benchmark using five independent random seeds (42, 123, 456, 789, 2024). Botnet and Infiltration traffic are completely excluded from training splits and reserved exclusively as unobserved zero-day attacks during testing.
+
+![Figure 3: Head-to-Head Comparison](fig2_head_to_head_comparison.png)
+*Figure 3: Multi-seed empirical benchmark comparison across five independent random splits with 95% bootstrap confidence intervals. IR-IDS 2.0 achieves superior Macro-F1 and G-Mean while suppressing benign false alarms to 0.94% (a 20-fold reduction relative to baseline).*
 
 ### Benchmark Comparison Across 5 Random Seeds (Mean ± Std with 95% Bootstrap CI)
 
